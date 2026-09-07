@@ -429,6 +429,104 @@ st.write(
     "rata-rata nilai absolut SHAP."
 )
 
+# ============================================================
+# DISTRIBUSI PREDIKSI SELURUH UNSRAT
+# ============================================================
+
+st.divider()
+
+st.subheader("Distribusi Prediksi Tingkat Stres Seluruh UNSRAT")
+
+st.write(
+    "Distribusi berikut merupakan hasil prediksi model SVM "
+    "terhadap seluruh 150 responden yang telah melalui proses "
+    "screening dan digunakan dalam dataset penelitian."
+)
+
+
+@st.cache_data
+def load_prediction_data():
+    return pd.read_csv("hasil_prediksi_final.csv")
+
+
+hasil_prediksi_final = load_prediction_data()
+
+
+# ------------------------------------------------------------
+# CEK KOLOM
+# ------------------------------------------------------------
+
+required_columns = [
+    "Fakultas",
+    "Prediksi"
+]
+
+missing_columns = [
+    col for col in required_columns
+    if col not in hasil_prediksi_final.columns
+]
+
+if missing_columns:
+
+    st.error(
+        f"Kolom berikut tidak ditemukan pada "
+        f"hasil_prediksi_final.csv: {missing_columns}"
+    )
+
+    st.stop()
+
+
+# ------------------------------------------------------------
+# DISTRIBUSI PREDIKSI
+# ------------------------------------------------------------
+
+distribusi_unsrat = (
+    hasil_prediksi_final["Prediksi"]
+    .value_counts()
+    .reindex(
+        ["Rendah", "Sedang", "Tinggi"],
+        fill_value=0
+    )
+    .reset_index()
+)
+
+distribusi_unsrat.columns = [
+    "Tingkat Stres",
+    "Jumlah"
+]
+
+
+distribusi_unsrat["Persentase (%)"] = (
+    distribusi_unsrat["Jumlah"]
+    / len(hasil_prediksi_final)
+    * 100
+)
+
+
+# ------------------------------------------------------------
+# TABEL
+# ------------------------------------------------------------
+
+st.dataframe(
+    distribusi_unsrat.style.format({
+        "Persentase (%)": "{:.2f}%"
+    }),
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# ------------------------------------------------------------
+# GRAFIK
+# ------------------------------------------------------------
+
+grafik_unsrat = distribusi_unsrat.set_index(
+    "Tingkat Stres"
+)
+
+st.bar_chart(
+    grafik_unsrat["Persentase (%)"]
+)
 
 # ============================================================
 # HASIL SHAP FINAL PENELITIAN
@@ -473,6 +571,88 @@ global_shap = global_shap.sort_values(
     ascending=False
 )
 
+# ============================================================
+# DISTRIBUSI PREDIKSI BERDASARKAN FAKULTAS
+# ============================================================
+
+st.divider()
+
+st.subheader(
+    "Distribusi Prediksi Tingkat Stres Berdasarkan Fakultas"
+)
+
+st.write(
+    "Tabel berikut menunjukkan distribusi hasil prediksi "
+    "tingkat stres berdasarkan fakultas pada responden "
+    "penelitian."
+)
+
+
+# ------------------------------------------------------------
+# TABULASI FAKULTAS
+# ------------------------------------------------------------
+
+prediksi_fakultas = pd.crosstab(
+    hasil_prediksi_final["Fakultas"],
+    hasil_prediksi_final["Prediksi"]
+)
+
+
+# Pastikan ketiga kelas selalu tersedia
+for kelas in ["Rendah", "Sedang", "Tinggi"]:
+
+    if kelas not in prediksi_fakultas.columns:
+        prediksi_fakultas[kelas] = 0
+
+
+prediksi_fakultas = prediksi_fakultas[
+    ["Rendah", "Sedang", "Tinggi"]
+]
+
+
+# ------------------------------------------------------------
+# JUMLAH RESPONDEN PER FAKULTAS
+# ------------------------------------------------------------
+
+prediksi_fakultas["Total"] = (
+    prediksi_fakultas[
+        ["Rendah", "Sedang", "Tinggi"]
+    ].sum(axis=1)
+)
+
+
+# ------------------------------------------------------------
+# PERSENTASE PER FAKULTAS
+# ------------------------------------------------------------
+
+persentase_fakultas = (
+    prediksi_fakultas[
+        ["Rendah", "Sedang", "Tinggi"]
+    ]
+    .div(prediksi_fakultas["Total"], axis=0)
+    * 100
+)
+
+
+persentase_fakultas = (
+    persentase_fakultas
+    .reset_index()
+)
+
+
+# ------------------------------------------------------------
+# TAMPILKAN TABEL
+# ------------------------------------------------------------
+
+st.dataframe(
+    persentase_fakultas.style.format({
+        "Rendah": "{:.2f}%",
+        "Sedang": "{:.2f}%",
+        "Tinggi": "{:.2f}%"
+    }),
+    use_container_width=True,
+    hide_index=True
+)
 
 # ============================================================
 # TABEL GLOBAL SHAP
