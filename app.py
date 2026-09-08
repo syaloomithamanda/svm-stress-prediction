@@ -144,7 +144,6 @@ if predict_button:
         columns=feature_names
     )
 
-
     # --------------------------------------------------------
     # PREDIKSI MODEL SVM
     # --------------------------------------------------------
@@ -155,77 +154,113 @@ if predict_button:
         prediction_encoded
     )[0]
 
-
-    # ========================================================
-    # PROBABILITAS SETIAP KELAS
-    # ========================================================
-
-    st.subheader("Probabilitas Prediksi Setiap Kelas")
-
-    st.caption(
-        "Persentase berikut menunjukkan probabilitas masing-masing "
-        "kelas berdasarkan model.predict_proba()."
-    )
-
-    st.dataframe(
-        probability_df.style.format({
-            "Probabilitas (%)": "{:.2f}%"
-        }),
-        use_container_width=True,
-        hide_index=True
-    )
-
     # --------------------------------------------------------
-    # GRAFIK PROBABILITAS
+    # PROBABILITAS PREDIKSI
     # --------------------------------------------------------
 
-    st.markdown("#### Grafik Probabilitas Prediksi")
+    # predict_proba() menghasilkan probabilitas untuk setiap
+    # kelas berdasarkan urutan model.classes_.
+    probabilities = model.predict_proba(input_data)[0]
 
-    st.caption(
-        "Sumbu vertikal menunjukkan probabilitas prediksi dalam persen (%), "
-        "sedangkan sumbu horizontal menunjukkan kategori tingkat stres."
+    # Urutan kelas pada model
+    model_class_encoded = model.classes_
+
+    # Konversi label encoded menjadi label asli
+    model_class_labels = label_encoder.inverse_transform(
+        model_class_encoded
     )
 
-    chart_data = probability_df.set_index("Tingkat Stres")
+    # DataFrame probabilitas
+    probability_df = pd.DataFrame({
+        "Tingkat Stres": model_class_labels,
+        "Probabilitas (%)": probabilities * 100
+    })
 
-    st.bar_chart(
-        chart_data["Probabilitas (%)"]
-    )
+    # --------------------------------------------------------
+    # MENENTUKAN POSISI KELAS HASIL PREDIKSI
+    # --------------------------------------------------------
 
+    # prediction_encoded[0] adalah kelas yang dihasilkan
+    # oleh model.predict().
+    #
+    # predicted_class_index adalah posisi kelas tersebut
+    # pada output predict_proba().
+    predicted_class_index = np.where(
+        model_class_encoded == prediction_encoded[0]
+    )[0][0]
+
+    # Probabilitas kelas yang diprediksi
+    predicted_class_probability = probabilities[
+        predicted_class_index
+    ] * 100
 
     # ========================================================
-    # HASIL PREDIKSI
+    # HASIL PREDIKSI MODEL
     # ========================================================
-
-    st.markdown("---")
 
     st.subheader("Hasil Prediksi Model")
 
     st.caption(
-        "Output utama model berdasarkan nilai PASS dan PSQI yang dimasukkan."
+        "Hasil utama prediksi ditentukan menggunakan "
+        "`model.predict()`. Nilai probabilitas pada bagian "
+        "berikut berasal dari `model.predict_proba()` dan "
+        "digunakan sebagai informasi tambahan."
     )
 
     result_col, prob_col = st.columns(2)
 
+    with result_col:
+
+        st.markdown("**Prediksi Model SVM (`predict()`)**")
+
+        st.markdown(
+            f"<h2>{prediction_label}</h2>",
+            unsafe_allow_html=True
+        )
+
+        st.caption(
+            "Kategori tingkat stres yang dihasilkan langsung "
+            "oleh model SVM."
+        )
+
+    with prob_col:
+
+        st.markdown(
+            "**Probabilitas Kelas Hasil Prediksi (`predict_proba()`)**"
+        )
+
+        st.markdown(
+            f"<h2>{predicted_class_probability:.2f}%</h2>",
+            unsafe_allow_html=True
+        )
+
+        st.caption(
+            f"Probabilitas untuk kelas **{prediction_label}** "
+            "berdasarkan `predict_proba()`."
+        )
 
     # --------------------------------------------------------
-    # CATATAN PROBABILITAS
+    # PENJELASAN predict() DAN predict_proba()
     # --------------------------------------------------------
 
     st.info(
         """
-        **Cara membaca hasil prediksi:**
-    
-        - **`model.predict()`** digunakan sebagai **hasil prediksi utama model SVM**,
-          yaitu kategori tingkat stres yang ditampilkan pada bagian *Prediksi Model SVM*.
-        - **`model.predict_proba()`** digunakan untuk menampilkan **probabilitas
-          masing-masing kelas** sebagai informasi tambahan mengenai output model.
-    
-        Dengan demikian, probabilitas pada tabel dan grafik tidak digunakan untuk
-        mengganti hasil prediksi utama yang dihasilkan oleh `model.predict()`.
+        **Perbedaan `predict()` dan `predict_proba()`**
+
+        - **`model.predict()`** digunakan sebagai **hasil
+          prediksi utama model SVM**, yaitu menentukan satu
+          kategori tingkat stres: Rendah, Sedang, atau Tinggi.
+        - **`model.predict_proba()`** digunakan untuk menampilkan
+          **probabilitas masing-masing kelas** sebagai informasi
+          tambahan mengenai keluaran model.
+
+        Oleh karena itu, kategori yang ditampilkan pada
+        **Prediksi Model SVM** tetap mengikuti hasil
+        `model.predict()`, sedangkan probabilitas digunakan
+        untuk melihat distribusi keyakinan model terhadap
+        masing-masing kelas.
         """
     )
-
 
     # ========================================================
     # PROBABILITAS SETIAP KELAS
@@ -234,8 +269,9 @@ if predict_button:
     st.subheader("Probabilitas Prediksi Setiap Kelas")
 
     st.caption(
-        "Persentase berikut menunjukkan probabilitas masing-masing "
-        "kelas berdasarkan model.predict_proba()."
+        "Probabilitas berikut merupakan keluaran "
+        "`model.predict_proba()` untuk masing-masing kategori "
+        "tingkat stres."
     )
 
     st.dataframe(
@@ -246,7 +282,6 @@ if predict_button:
         hide_index=True
     )
 
-
     # --------------------------------------------------------
     # GRAFIK PROBABILITAS
     # --------------------------------------------------------
@@ -254,8 +289,9 @@ if predict_button:
     st.markdown("#### Grafik Probabilitas Prediksi")
 
     st.caption(
-        "Sumbu vertikal menunjukkan probabilitas prediksi dalam persen (%), "
-        "sedangkan sumbu horizontal menunjukkan kategori tingkat stres."
+        "Grafik menunjukkan probabilitas masing-masing kelas "
+        "tingkat stres dalam persen (%). Nilai pada grafik "
+        "merupakan keluaran `model.predict_proba()`."
     )
 
     chart_data = probability_df.set_index(
@@ -263,10 +299,8 @@ if predict_button:
     )
 
     st.bar_chart(
-        chart_data["Probabilitas (%)"],
-        y_label="Probabilitas (%)"
+        chart_data["Probabilitas (%)"]
     )
-
 
     # ========================================================
     # SHAP LOCAL
@@ -277,10 +311,9 @@ if predict_button:
     st.header("2. Explainable AI — SHAP Lokal")
 
     st.write(
-        "SHAP digunakan untuk melihat kontribusi masing-masing "
-        "fitur terhadap output kelas yang diprediksi."
+        "SHAP digunakan untuk menjelaskan kontribusi masing-masing "
+        "fitur terhadap output kelas yang diprediksi oleh model."
     )
-
 
     with st.spinner("Menghitung penjelasan SHAP..."):
 
@@ -291,20 +324,17 @@ if predict_button:
             nsamples=100
         )
 
-
     # --------------------------------------------------------
     # KONVERSI SHAP
     # --------------------------------------------------------
 
     shap_array = np.asarray(shap_values)
 
-
     if isinstance(shap_values, list):
 
         local_shap = np.asarray(
             shap_values[predicted_class_index]
         )[0]
-
 
     elif shap_array.ndim == 3:
 
@@ -314,11 +344,9 @@ if predict_button:
             predicted_class_index
         ]
 
-
     elif shap_array.ndim == 2:
 
         local_shap = shap_array[0]
-
 
     else:
 
@@ -329,6 +357,16 @@ if predict_button:
 
         st.stop()
 
+    # Pastikan jumlah SHAP sesuai dengan jumlah fitur
+    if len(local_shap) != len(feature_names):
+
+        st.error(
+            "Jumlah nilai SHAP tidak sesuai dengan jumlah fitur. "
+            f"Jumlah SHAP: {len(local_shap)}, "
+            f"jumlah fitur: {len(feature_names)}."
+        )
+
+        st.stop()
 
     # ========================================================
     # TABEL SHAP
@@ -347,17 +385,22 @@ if predict_button:
 
     })
 
-
     shap_df["Kontribusi Absolut"] = (
         shap_df["SHAP Value"].abs()
     )
-
 
     shap_df = shap_df.sort_values(
         "Kontribusi Absolut",
         ascending=False
     )
 
+    st.subheader("Nilai SHAP Lokal")
+
+    st.caption(
+        f"Nilai SHAP menjelaskan kontribusi fitur terhadap "
+        f"kelas **{prediction_label}**, yaitu kelas yang "
+        f"dihasilkan oleh `model.predict()`."
+    )
 
     st.dataframe(
 
@@ -380,7 +423,6 @@ if predict_button:
         hide_index=True
     )
 
-
     # ========================================================
     # GRAFIK SHAP
     # ========================================================
@@ -391,11 +433,9 @@ if predict_button:
         ["Fitur", "SHAP Value"]
     ].set_index("Fitur")
 
-
     st.bar_chart(
         shap_chart["SHAP Value"]
     )
-
 
     # ========================================================
     # INTERPRETASI SHAP LOKAL
@@ -405,53 +445,67 @@ if predict_button:
 
     # Fitur dengan kontribusi absolut terbesar
     dominant_feature = shap_df.iloc[0]["Fitur"]
+
     dominant_value = shap_df.iloc[0]["SHAP Value"]
+
+    dominant_abs_value = shap_df.iloc[0][
+        "Kontribusi Absolut"
+    ]
 
     # Arah kontribusi SHAP
     if dominant_value > 0:
+
         direction = (
             "memberikan kontribusi positif terhadap "
-            "output kelas yang diprediksi"
+            f"output kelas **{prediction_label}**"
         )
 
     elif dominant_value < 0:
+
         direction = (
             "memberikan kontribusi negatif terhadap "
-            "output kelas yang diprediksi"
+            f"output kelas **{prediction_label}**"
         )
 
     else:
+
         direction = (
-            "tidak memberikan kontribusi berarti terhadap "
-            "output kelas yang diprediksi"
+            "tidak memberikan kontribusi positif maupun "
+            "negatif yang berarti terhadap output kelas "
+            f"**{prediction_label}**"
         )
 
     # Interpretasi utama
     st.info(
         f"""
-        Fitur dengan kontribusi absolut terbesar pada input ini adalah
-        **{dominant_feature}** dengan nilai SHAP
-        **{dominant_value:.6f}**.
+        Pada input yang diberikan, fitur dengan kontribusi
+        absolut terbesar adalah **{dominant_feature}** dengan
+        nilai SHAP **{dominant_value:.6f}**.
 
-        Fitur tersebut {direction}.
+        Nilai absolut SHAP sebesar **{dominant_abs_value:.6f}**
+        menunjukkan bahwa fitur tersebut merupakan fitur yang
+        paling besar kontribusinya dalam menjelaskan output
+        model pada input ini.
+
+        Secara arah, fitur tersebut {direction}.
         """
     )
 
-    # Penjelasan cara membaca SHAP
+    # --------------------------------------------------------
+    # CARA MEMBACA SHAP
+    # --------------------------------------------------------
+
     st.caption(
         """
-        **Cara membaca nilai SHAP:** nilai SHAP menunjukkan kontribusi
-        suatu fitur terhadap output kelas yang sedang dijelaskan.
-        Nilai SHAP positif menunjukkan bahwa fitur meningkatkan output
-        kelas tersebut relatif terhadap nilai dasar (baseline) model,
-        sedangkan nilai SHAP negatif menunjukkan kontribusi yang
-        menurunkan output kelas tersebut.
+        **Cara membaca SHAP:** nilai SHAP positif menunjukkan
+        kontribusi yang meningkatkan output kelas yang sedang
+        dijelaskan relatif terhadap nilai dasar (baseline) model.
+        Nilai SHAP negatif menunjukkan kontribusi yang menurunkan
+        output kelas tersebut. Semakin besar nilai absolut SHAP,
+        semakin besar kontribusi fitur pada input yang dianalisis.
 
-        Semakin besar nilai absolut SHAP, semakin besar kontribusi fitur
-        tersebut terhadap output model pada input yang dianalisis.
-
-        Nilai SHAP menjelaskan kontribusi terhadap output model dan
-        **tidak menunjukkan hubungan sebab-akibat**.
+        Nilai SHAP menjelaskan kontribusi fitur terhadap output
+        model dan **tidak menunjukkan hubungan sebab-akibat**.
         """
     )
 
