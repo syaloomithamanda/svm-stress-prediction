@@ -156,23 +156,40 @@ if predict_button:
     )[0]
 
 
-    # --------------------------------------------------------
+    # ========================================================
     # PROBABILITAS SETIAP KELAS
+    # ========================================================
+
+    st.subheader("Probabilitas Prediksi Setiap Kelas")
+
+    st.caption(
+        "Persentase berikut menunjukkan probabilitas masing-masing "
+        "kelas berdasarkan model.predict_proba()."
+    )
+
+    st.dataframe(
+        probability_df.style.format({
+            "Probabilitas (%)": "{:.2f}%"
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # --------------------------------------------------------
+    # GRAFIK PROBABILITAS
     # --------------------------------------------------------
 
-    probabilities = model.predict_proba(input_data)[0]
+    st.markdown("#### Grafik Probabilitas Prediksi")
 
-    classes = label_encoder.classes_
+    st.caption(
+        "Sumbu vertikal menunjukkan probabilitas prediksi dalam persen (%), "
+        "sedangkan sumbu horizontal menunjukkan kategori tingkat stres."
+    )
 
+    chart_data = probability_df.set_index("Tingkat Stres")
 
-    probability_df = pd.DataFrame({
-        "Tingkat Stres": classes,
-        "Probabilitas (%)": probabilities * 100
-    })
-
-
-    predicted_class_index = list(classes).index(
-        prediction_label
+    st.bar_chart(
+        chart_data["Probabilitas (%)"]
     )
 
 
@@ -386,25 +403,55 @@ if predict_button:
 
     st.markdown("#### Interpretasi SHAP Lokal")
 
+    # Fitur dengan kontribusi absolut terbesar
+    dominant_feature = shap_df.iloc[0]["Fitur"]
+    dominant_value = shap_df.iloc[0]["SHAP Value"]
+
+    # Arah kontribusi SHAP
+    if dominant_value > 0:
+        direction = (
+            "memberikan kontribusi positif terhadap "
+            "output kelas yang diprediksi"
+        )
+
+    elif dominant_value < 0:
+        direction = (
+            "memberikan kontribusi negatif terhadap "
+            "output kelas yang diprediksi"
+        )
+
+    else:
+        direction = (
+            "tidak memberikan kontribusi berarti terhadap "
+            "output kelas yang diprediksi"
+        )
+
+    # Interpretasi utama
     st.info(
         f"""
         Fitur dengan kontribusi absolut terbesar pada input ini adalah
-        **{dominant_feature}** dengan nilai SHAP **{dominant_value:.6f}**.
-    
+        **{dominant_feature}** dengan nilai SHAP
+        **{dominant_value:.6f}**.
+
         Fitur tersebut {direction}.
         """
     )
 
+    # Penjelasan cara membaca SHAP
     st.caption(
         """
-        **Cara membaca nilai SHAP:** nilai SHAP menunjukkan kontribusi suatu
-        fitur terhadap output kelas yang sedang dijelaskan. Nilai SHAP positif
-        menunjukkan bahwa fitur meningkatkan output kelas tersebut relatif
-        terhadap nilai dasar (baseline) model, sedangkan nilai SHAP negatif
-        menunjukkan kontribusi yang menurunkan output kelas tersebut.
-    
+        **Cara membaca nilai SHAP:** nilai SHAP menunjukkan kontribusi
+        suatu fitur terhadap output kelas yang sedang dijelaskan.
+        Nilai SHAP positif menunjukkan bahwa fitur meningkatkan output
+        kelas tersebut relatif terhadap nilai dasar (baseline) model,
+        sedangkan nilai SHAP negatif menunjukkan kontribusi yang
+        menurunkan output kelas tersebut.
+
         Semakin besar nilai absolut SHAP, semakin besar kontribusi fitur
         tersebut terhadap output model pada input yang dianalisis.
+
+        Nilai SHAP menjelaskan kontribusi terhadap output model dan
+        **tidak menunjukkan hubungan sebab-akibat**.
         """
     )
 
