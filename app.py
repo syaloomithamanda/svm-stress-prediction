@@ -53,6 +53,7 @@ if list(feature_names) != expected_features:
 # ============================================================
 
 st.title("🧠 Prediksi Tingkat Stres Mahasiswa Semester Akhir")
+st.caption("Universitas Sam Ratulangi • Support Vector Machine (SVM) • Explainable AI (SHAP)")
 
 st.markdown(
     """
@@ -84,7 +85,7 @@ st.divider()
 # INPUT DATA
 # ============================================================
 
-st.subheader("Input Data Mahasiswa")
+st.header("1. Prediksi Tingkat Stres Mahasiswa")
 
 col1, col2 = st.columns(2)
 
@@ -190,7 +191,7 @@ if predict_button:
 
     st.divider()
 
-    st.subheader("Hasil Prediksi")
+    st.subheader("Hasil Prediksi Model")
 
     result_col, prob_col = st.columns(2)
 
@@ -252,7 +253,7 @@ if predict_button:
 
     st.divider()
 
-    st.subheader("Penjelasan Prediksi dengan SHAP")
+    st.header("2. Explainable AI — SHAP Lokal")
 
     st.write(
         "SHAP digunakan untuk melihat kontribusi masing-masing "
@@ -421,7 +422,7 @@ if predict_button:
 
 st.divider()
 
-st.subheader("Global Feature Importance SHAP")
+st.header("5. Global Feature Importance — SHAP")
 
 st.write(
     "Berdasarkan hasil analisis SHAP pada model final, "
@@ -435,11 +436,11 @@ st.write(
 
 st.divider()
 
-st.subheader("Distribusi Prediksi Tingkat Stres Seluruh UNSRAT")
+st.header("3. Distribusi Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT")
 
 st.write(
     "Distribusi berikut merupakan hasil prediksi model SVM "
-    "terhadap seluruh 150 responden yang telah melalui proses "
+    "terhadap 150 responden penelitian yang telah melalui proses "
     "screening dan digunakan dalam dataset penelitian."
 )
 
@@ -474,6 +475,9 @@ if missing_columns:
     )
 
     st.stop()
+
+
+st.caption(f"Jumlah responden yang digunakan pada distribusi: **{len(hasil_prediksi_final)}**")
 
 
 # ------------------------------------------------------------
@@ -528,6 +532,12 @@ st.bar_chart(
     grafik_unsrat["Persentase (%)"]
 )
 
+st.caption(
+    "Interpretasi distribusi ini terbatas pada responden penelitian yang "
+    "terdapat dalam hasil_prediksi_final.csv dan bukan estimasi prevalensi "
+    "untuk seluruh populasi mahasiswa UNSRAT."
+)
+
 # ============================================================
 # HASIL SHAP FINAL PENELITIAN
 # ============================================================
@@ -577,9 +587,7 @@ global_shap = global_shap.sort_values(
 
 st.divider()
 
-st.subheader(
-    "Distribusi Prediksi Tingkat Stres Berdasarkan Fakultas"
-)
+st.header("4. Distribusi Prediksi Tingkat Stres Berdasarkan Fakultas")
 
 st.write(
     "Tabel berikut menunjukkan distribusi hasil prediksi "
