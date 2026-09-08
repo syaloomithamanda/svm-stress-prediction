@@ -52,33 +52,24 @@ if list(feature_names) != expected_features:
 # HEADER
 # ============================================================
 
-st.title("🧠 Prediksi Tingkat Stres Mahasiswa Semester Akhir Universitas Sam Ratulangi Menggunakan Algoritma Support Vector Machine dengan Pendekatan Explainable AI")
-st.caption("Universitas Sam Ratulangi • Support Vector Machine (SVM) • Explainable AI (SHAP)")
-
 st.markdown(
     """
-Aplikasi ini digunakan untuk memprediksi tingkat stres mahasiswa
-semester akhir Universitas Sam Ratulangi menggunakan **Support Vector
-Machine (SVM)** dengan pendekatan **Explainable AI (SHAP)**.
-
-Model menggunakan:
-
-- **PASS** — faktor akademik
-- **PSQI** — kualitas pola tidur
-
-Tingkat stres sebagai variabel target diklasifikasikan berdasarkan
-**PSS-10** ke dalam tiga kategori:
-
-- Rendah
-- Sedang
-- Tinggi
-
-Pendekatan **Explainable AI (SHAP)** digunakan untuk menjelaskan
-kontribusi masing-masing variabel prediktor terhadap hasil prediksi.
-"""
+    <h1 style="
+        font-size: 2.35rem;
+        line-height: 1.2;
+        margin-bottom: 0.4rem;
+    ">
+        🧠 Prediksi Tingkat Stres Mahasiswa Semester Akhir
+        Universitas Sam Ratulangi Menggunakan Algoritma
+        Support Vector Machine dengan Pendekatan Explainable AI
+    </h1>
+    """,
+    unsafe_allow_html=True
 )
 
-st.divider()
+st.caption(
+    "Universitas Sam Ratulangi • Support Vector Machine (SVM) • Explainable AI (SHAP)"
+)
 
 
 # ============================================================
@@ -189,35 +180,33 @@ if predict_button:
     # HASIL PREDIKSI
     # ========================================================
 
-    st.divider()
+    st.markdown("---")
 
     st.subheader("Hasil Prediksi Model")
 
+    st.caption(
+        "Output utama model berdasarkan nilai PASS dan PSQI yang dimasukkan."
+    )
+
     result_col, prob_col = st.columns(2)
-
-    with result_col:
-
-        st.metric(
-            "Prediksi Model SVM",
-            prediction_label
-        )
-
-    with prob_col:
-
-        st.metric(
-            "Probabilitas Kelas Hasil Prediksi",
-            f"{probabilities[predicted_class_index] * 100:.2f}%"
-        )
 
 
     # --------------------------------------------------------
     # CATATAN PROBABILITAS
     # --------------------------------------------------------
 
-    st.caption(
-        "Prediksi tingkat stres ditentukan berdasarkan hasil "
-        "model.predict(). Nilai probabilitas ditampilkan "
-        "berdasarkan model.predict_proba()."
+    st.info(
+        """
+        **Cara membaca hasil prediksi:**
+    
+        - **`model.predict()`** digunakan sebagai **hasil prediksi utama model SVM**,
+          yaitu kategori tingkat stres yang ditampilkan pada bagian *Prediksi Model SVM*.
+        - **`model.predict_proba()`** digunakan untuk menampilkan **probabilitas
+          masing-masing kelas** sebagai informasi tambahan mengenai output model.
+    
+        Dengan demikian, probabilitas pada tabel dan grafik tidak digunakan untuk
+        mengganti hasil prediksi utama yang dihasilkan oleh `model.predict()`.
+        """
     )
 
 
@@ -225,7 +214,12 @@ if predict_button:
     # PROBABILITAS SETIAP KELAS
     # ========================================================
 
-    st.subheader("Probabilitas Setiap Kelas")
+    st.subheader("Probabilitas Prediksi Setiap Kelas")
+
+    st.caption(
+        "Persentase berikut menunjukkan probabilitas masing-masing "
+        "kelas berdasarkan model.predict_proba()."
+    )
 
     st.dataframe(
         probability_df.style.format({
@@ -236,14 +230,24 @@ if predict_button:
     )
 
 
-    # Grafik probabilitas
+    # --------------------------------------------------------
+    # GRAFIK PROBABILITAS
+    # --------------------------------------------------------
+
+    st.markdown("#### Grafik Probabilitas Prediksi")
+
+    st.caption(
+        "Sumbu vertikal menunjukkan probabilitas prediksi dalam persen (%), "
+        "sedangkan sumbu horizontal menunjukkan kategori tingkat stres."
+    )
 
     chart_data = probability_df.set_index(
         "Tingkat Stres"
     )
 
     st.bar_chart(
-        chart_data["Probabilitas (%)"]
+        chart_data["Probabilitas (%)"],
+        y_label="Probabilitas (%)"
     )
 
 
@@ -377,42 +381,31 @@ if predict_button:
 
 
     # ========================================================
-    # INTERPRETASI SHAP
+    # INTERPRETASI SHAP LOKAL
     # ========================================================
 
-    dominant_feature = shap_df.iloc[0]["Fitur"]
-
-    dominant_value = shap_df.iloc[0]["SHAP Value"]
-
-
-    if dominant_value > 0:
-
-        direction = (
-            "memberikan kontribusi positif terhadap "
-            "output kelas yang diprediksi"
-        )
-
-    elif dominant_value < 0:
-
-        direction = (
-            "memberikan kontribusi negatif terhadap "
-            "output kelas yang diprediksi"
-        )
-
-    else:
-
-        direction = (
-            "tidak memberikan kontribusi berarti "
-            "terhadap output kelas yang diprediksi"
-        )
-
+    st.markdown("#### Interpretasi SHAP Lokal")
 
     st.info(
+        f"""
+        Fitur dengan kontribusi absolut terbesar pada input ini adalah
+        **{dominant_feature}** dengan nilai SHAP **{dominant_value:.6f}**.
+    
+        Fitur tersebut {direction}.
+        """
+    )
 
-        f"Fitur dengan kontribusi absolut terbesar pada "
-        f"input ini adalah **{dominant_feature}** dengan "
-        f"nilai SHAP **{dominant_value:.6f}**. "
-        f"Fitur tersebut {direction}."
+    st.caption(
+        """
+        **Cara membaca nilai SHAP:** nilai SHAP menunjukkan kontribusi suatu
+        fitur terhadap output kelas yang sedang dijelaskan. Nilai SHAP positif
+        menunjukkan bahwa fitur meningkatkan output kelas tersebut relatif
+        terhadap nilai dasar (baseline) model, sedangkan nilai SHAP negatif
+        menunjukkan kontribusi yang menurunkan output kelas tersebut.
+    
+        Semakin besar nilai absolut SHAP, semakin besar kontribusi fitur
+        tersebut terhadap output model pada input yang dianalisis.
+        """
     )
 
 
