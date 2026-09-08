@@ -52,14 +52,14 @@ if list(feature_names) != expected_features:
 # HEADER
 # ============================================================
 
-st.title("🧠 Prediksi Tingkat Stres Mahasiswa Semester Akhir")
+st.title("🧠 Prediksi Tingkat Stres Mahasiswa Semester Akhir Universitas Sam Ratulangi Menggunakan Algoritma Support Vector Machine dengan Pendekatan Explainable AI")
 st.caption("Universitas Sam Ratulangi • Support Vector Machine (SVM) • Explainable AI (SHAP)")
 
 st.markdown(
     """
 Aplikasi ini digunakan untuk memprediksi tingkat stres mahasiswa
 semester akhir Universitas Sam Ratulangi menggunakan **Support Vector
-Machine (SVM)**.
+Machine (SVM)** dengan pendekatan **Explainable AI (SHAP)**.
 
 Model menggunakan:
 
@@ -417,31 +417,17 @@ if predict_button:
 
 
 # ============================================================
-# GLOBAL FEATURE IMPORTANCE SHAP
+# DISTRIBUSI PREDIKSI SELURUH RESPONDEN PENELITIAN
 # ============================================================
 
 st.divider()
 
-st.header("5. Global Feature Importance — SHAP")
+st.header("3. Distribusi Prediksi Tingkat Stres pada 150 Responden Penelitian")
 
 st.write(
-    "Berdasarkan hasil analisis SHAP pada model final, "
-    "kontribusi global fitur dihitung menggunakan "
-    "rata-rata nilai absolut SHAP."
-)
-
-# ============================================================
-# DISTRIBUSI PREDIKSI SELURUH UNSRAT
-# ============================================================
-
-st.divider()
-
-st.header("3. Distribusi Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT")
-
-st.write(
-    "Distribusi berikut merupakan hasil prediksi model SVM "
-    "terhadap 150 responden penelitian yang telah melalui proses "
-    "screening dan digunakan dalam dataset penelitian."
+    "Distribusi berikut merupakan hasil prediksi model SVM terhadap "
+    "responden penelitian yang telah melalui proses screening dan "
+    "digunakan dalam dataset penelitian."
 )
 
 
@@ -647,6 +633,17 @@ persentase_fakultas = (
     .reset_index()
 )
 
+# Tambahkan jumlah responden (n) agar persentase tiap fakultas
+# dapat dibaca bersama ukuran sampelnya.
+persentase_fakultas["Jumlah Responden"] = (
+    prediksi_fakultas["Total"]
+    .values
+)
+
+persentase_fakultas = persentase_fakultas[
+    ["Fakultas", "Jumlah Responden", "Rendah", "Sedang", "Tinggi"]
+]
+
 
 # ------------------------------------------------------------
 # TAMPILKAN TABEL
@@ -654,12 +651,31 @@ persentase_fakultas = (
 
 st.dataframe(
     persentase_fakultas.style.format({
+        "Jumlah Responden": "{:.0f}",
         "Rendah": "{:.2f}%",
         "Sedang": "{:.2f}%",
         "Tinggi": "{:.2f}%"
     }),
     use_container_width=True,
     hide_index=True
+)
+
+st.caption(
+    "Persentase pada setiap fakultas dihitung berdasarkan jumlah responden "
+    "dalam fakultas tersebut, sehingga persentase setiap baris berjumlah 100%."
+)
+
+# ============================================================
+# GLOBAL FEATURE IMPORTANCE SHAP
+# ============================================================
+
+st.divider()
+
+st.header("5. Global Feature Importance — SHAP")
+
+st.write(
+    "Berdasarkan hasil analisis SHAP pada model final, kontribusi global "
+    "fitur dihitung menggunakan rata-rata nilai absolut SHAP."
 )
 
 # ============================================================
@@ -693,6 +709,11 @@ global_chart = global_shap[
 
 st.bar_chart(
     global_chart["Kontribusi (%)"]
+)
+
+st.caption(
+    "Kontribusi (%) dihitung dari proporsi Mean Absolute SHAP masing-masing "
+    "fitur terhadap total Mean Absolute SHAP fitur yang dianalisis."
 )
 
 
@@ -729,9 +750,9 @@ st.info(
 st.divider()
 
 st.caption(
-    "Model SVM final menggunakan fitur PASS dan PSQI dengan "
-    "Tingkat_Stres sebagai variabel target. "
-    "PSS-10_Score tidak digunakan sebagai fitur masukan model. "
-    "Nilai SHAP menunjukkan kontribusi fitur terhadap output model "
-    "dan tidak dimaksudkan sebagai hubungan sebab-akibat."
+    "Catatan penelitian: Model SVM final menggunakan PASS dan PSQI sebagai "
+    "fitur masukan dengan Tingkat_Stres sebagai variabel target. PSS-10_Score "
+    "digunakan untuk pembentukan target dan tidak digunakan sebagai fitur masukan. "
+    "Nilai SHAP menjelaskan kontribusi fitur terhadap output model dan tidak "
+    "dimaksudkan sebagai bukti hubungan sebab-akibat."
 )
