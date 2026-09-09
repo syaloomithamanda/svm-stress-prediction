@@ -629,7 +629,7 @@ else:
             batch_encoded
         )
 
-        if batch_missing:
+if batch_missing:
     st.warning(
         "Batch prediction tidak dapat dijalankan karena kolom berikut "
         f"tidak tersedia pada hasil_prediksi_final.csv: {batch_missing}"
