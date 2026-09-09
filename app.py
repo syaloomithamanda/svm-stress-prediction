@@ -79,8 +79,9 @@ st.caption(
 st.header("1. Prediksi Tingkat Stres Mahasiswa")
 
 st.write(
-    "Masukkan skor variabel penelitian yang akan digunakan "
-    "sebagai input model SVM."
+    "Masukkan skor variabel prediktor penelitian, yaitu faktor akademik "
+    "(PASS) dan kualitas pola tidur (PSQI). PSS-10 tidak dimasukkan sebagai "
+    "input karena digunakan sebagai dasar pembentukan target tingkat stres."
 )
 
 col1, col2 = st.columns(2)
@@ -92,16 +93,9 @@ with col1:
         max_value=68.0,
         value=None,
         step=1.0,
-        placeholder="Masukkan skor PASS",
-        help=(
-            "Rentang skor PASS yang ditemukan pada dataset "
-            "penelitian adalah 40–68."
-        )
+        help="Masukkan skor PASS. Rentang 40–68 merupakan rentang skor PASS yang terdapat pada 150 responden dalam dataset penelitian."
     )
-
-    st.caption(
-        "Rentang pada dataset penelitian: **40–68**"
-    )
+    st.caption("Rentang pada dataset penelitian: 40–68")
 
 with col2:
     psqi_score = st.number_input(
@@ -110,16 +104,9 @@ with col2:
         max_value=18.0,
         value=None,
         step=1.0,
-        placeholder="Masukkan skor PSQI",
-        help=(
-            "Rentang skor PSQI yang ditemukan pada dataset "
-            "penelitian adalah 2–18."
-        )
+        help="Masukkan skor PSQI. Rentang 2–18 merupakan rentang skor PSQI yang terdapat pada 150 responden dalam dataset penelitian."
     )
-
-    st.caption(
-        "Rentang pada dataset penelitian: **2–18**"
-    )
+    st.caption("Rentang pada dataset penelitian: 2–18")
 
 
 predict_button = st.button(
@@ -157,13 +144,10 @@ def create_shap_explainer():
 # ============================================================
 
 if predict_button:
-
     if pass_score is None or psqi_score is None:
-        st.warning(
-            "Silakan masukkan skor PASS dan PSQI terlebih dahulu "
-            "sebelum melakukan prediksi."
-        )
+        st.warning("Silakan masukkan skor PASS dan PSQI terlebih dahulu sebelum melakukan prediksi.")
         st.stop()
+
 
     # --------------------------------------------------------
     # DATA INPUT
@@ -588,6 +572,147 @@ if missing_columns:
 
 
 st.caption(f"Jumlah responden yang digunakan pada distribusi: **{len(hasil_prediksi_final)}**")
+
+# ============================================================
+# BATCH PREDICTION — 150 RESPONDEN PENELITIAN
+# ============================================================
+
+st.subheader("Prediksi Tingkat Stres pada Seluruh 150 Responden Penelitian")
+
+st.write(
+    "Fitur ini menerapkan model SVM secara langsung pada seluruh "
+    "150 responden penelitian sekaligus menggunakan skor PASS dan "
+    "PSQI yang terdapat pada dataset penelitian. Responden tidak "
+    "perlu dimasukkan satu per satu."
+)
+
+st.caption(
+    "Hasil batch prediction berlaku untuk 150 responden sampel penelitian "
+    "yang dipilih secara proporsional, bukan prediksi individual untuk "
+    "seluruh populasi mahasiswa UNSRAT."
+)
+
+batch_required = ["PASS", "PSQI"]
+batch_missing = [
+    col for col in batch_required
+    if col not in hasil_prediksi_final.columns
+]
+
+if batch_missing:
+    st.warning(
+        "Batch prediction tidak dapat dijalankan karena kolom berikut "
+        f"tidak tersedia pada hasil_prediksi_final.csv: {batch_missing}"
+    )
+else:
+    batch_data = hasil_prediksi_final[batch_required].copy()
+
+    # Pastikan seluruh input batch berupa numerik.
+    for col in batch_required:
+        batch_data[col] = pd.to_numeric(
+            batch_data[col],
+            errors="coerce"
+        )
+
+    invalid_batch = batch_data.isna().any(axis=1)
+
+    if invalid_batch.any():
+        st.warning(
+            f"Terdapat {invalid_batch.sum()} baris dengan nilai PASS/PSQI "
+            "yang tidak valid. Batch prediction tidak dijalankan agar "
+            "hasil penelitian tidak berubah atau diisi secara otomatis."
+        )
+    else:
+        batch_encoded = model.predict(batch_data)
+
+        batch_labels = label_encoder.inverse_transform(
+            batch_encoded
+        )
+
+        batch_result = hasil_prediksi_final.copy()
+        batch_result["Prediksi_Batch"] = batch_labels
+
+        st.success(
+            f"Batch prediction berhasil dijalankan pada "
+            f"{len(batch_result)} responden penelitian."
+        )
+
+        batch_display_cols = [
+            col for col in [
+                "Fakultas",
+                "PASS",
+                "PSQI",
+                "Tingkat_Stres",
+                "Prediksi_Batch"
+            ]
+            if col in batch_result.columns
+        ]
+
+        st.dataframe(
+            batch_result[batch_display_cols],
+            use_container_width=True,
+            hide_index=True
+        )
+
+        batch_distribution = (
+            batch_result["Prediksi_Batch"]
+            .value_counts()
+            .reindex(
+                ["Rendah", "Sedang", "Tinggi"],
+                fill_value=0
+            )
+            .reset_index()
+        )
+
+        batch_distribution.columns = [
+            "Tingkat Stres",
+            "Jumlah"
+        ]
+
+        batch_distribution["Persentase (%)"] = (
+            batch_distribution["Jumlah"]
+            / len(batch_result)
+            * 100
+        )
+
+        st.markdown("#### Ringkasan Hasil Batch Prediction")
+
+        st.dataframe(
+            batch_distribution.style.format({
+                "Persentase (%)": "{:.2f}%"
+            }),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.bar_chart(
+            batch_distribution.set_index(
+                "Tingkat Stres"
+            )["Persentase (%)"]
+        )
+
+        # Bandingkan hasil model.predict() dengan kolom Prediksi yang
+        # sudah tersimpan. Jika berbeda, tampilkan sebagai pemeriksaan
+        # konsistensi, bukan mengganti hasil secara diam-diam.
+        if "Prediksi" in batch_result.columns:
+            mismatch_count = (
+                batch_result["Prediksi"].astype(str)
+                != batch_result["Prediksi_Batch"].astype(str)
+            ).sum()
+
+            if mismatch_count == 0:
+                st.caption(
+                    "Pemeriksaan konsistensi: hasil `model.predict()` "
+                    "pada batch sama dengan kolom `Prediksi` yang tersimpan "
+                    "untuk seluruh responden."
+                )
+            else:
+                st.warning(
+                    f"Pemeriksaan konsistensi menemukan {mismatch_count} "
+                    "hasil yang berbeda antara `model.predict()` saat ini "
+                    "dan kolom `Prediksi` yang tersimpan. Hasil batch "
+                    "ditampilkan apa adanya dan tidak digunakan untuk "
+                    "mengubah data penelitian."
+                )
 
 
 # ------------------------------------------------------------
