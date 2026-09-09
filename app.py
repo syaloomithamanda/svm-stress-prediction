@@ -78,25 +78,35 @@ st.caption(
 
 st.header("1. Prediksi Tingkat Stres Mahasiswa")
 
+st.write(
+    "Masukkan skor variabel prediktor penelitian, yaitu faktor akademik "
+    "(PASS) dan kualitas pola tidur (PSQI). PSS-10 tidak dimasukkan sebagai "
+    "input karena digunakan sebagai dasar pembentukan target tingkat stres."
+)
+
 col1, col2 = st.columns(2)
 
 with col1:
     pass_score = st.number_input(
-        "Skor PASS",
-        min_value=0.0,
-        max_value=100.0,
-        value=60.0,
-        step=1.0
+        "Skor PASS (Faktor Akademik)",
+        min_value=40.0,
+        max_value=68.0,
+        value=50.0,
+        step=1.0,
+        help="Masukkan skor PASS. Rentang 40–68 merupakan rentang skor PASS yang terdapat pada 150 responden dalam dataset penelitian."
     )
+    st.caption("Rentang pada dataset penelitian: 40–68")
 
 with col2:
     psqi_score = st.number_input(
-        "Skor PSQI",
-        min_value=0.0,
-        max_value=21.0,
-        value=5.0,
-        step=1.0
+        "Skor PSQI (Kualitas Pola Tidur)",
+        min_value=2.0,
+        max_value=18.0,
+        value=9.0,
+        step=1.0,
+        help="Masukkan skor PSQI. Rentang 2–18 merupakan rentang skor PSQI yang terdapat pada 150 responden dalam dataset penelitian."
     )
+    st.caption("Rentang pada dataset penelitian: 2–18")
 
 
 predict_button = st.button(
