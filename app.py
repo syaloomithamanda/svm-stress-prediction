@@ -553,7 +553,8 @@ hasil_prediksi_final = load_prediction_data()
 
 required_columns = [
     "Fakultas",
-    "Prediksi"
+    "PASS",
+    "PSQI"
 ]
 
 missing_columns = [
@@ -628,7 +629,40 @@ else:
             batch_encoded
         )
 
+        if batch_missing:
+    st.warning(
+        "Batch prediction tidak dapat dijalankan karena kolom berikut "
+        f"tidak tersedia pada hasil_prediksi_final.csv: {batch_missing}"
+    )
+else:
+    batch_data = hasil_prediksi_final[batch_required].copy()
+
+    for col in batch_required:
+        batch_data[col] = pd.to_numeric(
+            batch_data[col],
+            errors="coerce"
+        )
+
+    invalid_batch = batch_data.isna().any(axis=1)
+
+    if invalid_batch.any():
+        st.warning(
+            f"Terdapat {invalid_batch.sum()} baris dengan nilai PASS/PSQI "
+            "yang tidak valid. Batch prediction tidak dijalankan agar "
+            "hasil penelitian tidak berubah atau diisi secara otomatis."
+        )
+    else:
+        batch_encoded = model.predict(batch_data)
+
+        batch_labels = label_encoder.inverse_transform(
+            batch_encoded
+        )
+
         batch_result = hasil_prediksi_final.copy()
+        batch_result["Prediksi_Batch"] = batch_labels
+
+        # semua analisis distribusi yang menggunakan
+        # Prediksi_Batch diletakkan di sini
         batch_result["Prediksi_Batch"] = batch_labels
 
         st.success(
@@ -690,37 +724,13 @@ else:
             )["Persentase (%)"]
         )
 
-        # Bandingkan hasil model.predict() dengan kolom Prediksi yang
-        # sudah tersimpan. Jika berbeda, tampilkan sebagai pemeriksaan
-        # konsistensi, bukan mengganti hasil secara diam-diam.
-        if "Prediksi" in batch_result.columns:
-            mismatch_count = (
-                batch_result["Prediksi"].astype(str)
-                != batch_result["Prediksi_Batch"].astype(str)
-            ).sum()
-
-            if mismatch_count == 0:
-                st.caption(
-                    "Pemeriksaan konsistensi: hasil `model.predict()` "
-                    "pada batch sama dengan kolom `Prediksi` yang tersimpan "
-                    "untuk seluruh responden."
-                )
-            else:
-                st.warning(
-                    f"Pemeriksaan konsistensi menemukan {mismatch_count} "
-                    "hasil yang berbeda antara `model.predict()` saat ini "
-                    "dan kolom `Prediksi` yang tersimpan. Hasil batch "
-                    "ditampilkan apa adanya dan tidak digunakan untuk "
-                    "mengubah data penelitian."
-                )
-
 
 # ------------------------------------------------------------
 # DISTRIBUSI PREDIKSI
 # ------------------------------------------------------------
 
 distribusi_unsrat = (
-    hasil_prediksi_final["Prediksi"]
+    batch_result["Prediksi_Batch"]
     .value_counts()
     .reindex(
         ["Rendah", "Sedang", "Tinggi"],
@@ -734,10 +744,9 @@ distribusi_unsrat.columns = [
     "Jumlah"
 ]
 
-
 distribusi_unsrat["Persentase (%)"] = (
     distribusi_unsrat["Jumlah"]
-    / len(hasil_prediksi_final)
+    / len(batch_result)
     * 100
 )
 
@@ -836,8 +845,8 @@ st.write(
 # ------------------------------------------------------------
 
 prediksi_fakultas = pd.crosstab(
-    hasil_prediksi_final["Fakultas"],
-    hasil_prediksi_final["Prediksi"]
+    batch_result["Fakultas"],
+    batch_result["Prediksi_Batch"]
 )
 
 
