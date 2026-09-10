@@ -190,6 +190,61 @@ if predict_button:
         "Probabilitas (%)": probabilities * 100
     })
 
+    # ============================================================
+# INTERPRETASI HASIL PREDIKSI INDIVIDUAL
+# ============================================================
+
+st.markdown("### 🧠 Interpretasi Hasil Prediksi")
+
+stress_category_info = {
+    "Rendah": "0–13",
+    "Sedang": "14–26",
+    "Tinggi": "27–40"
+}
+
+predicted_range = stress_category_info.get(predicted_label, "-")
+
+st.info(
+    f"""
+    **Hasil prediksi model: {predicted_label}**
+
+    Berdasarkan kategori tingkat stres yang digunakan dalam penelitian:
+    
+    - **Rendah:** skor PSS-10 0–13
+    - **Sedang:** skor PSS-10 14–26
+    - **Tinggi:** skor PSS-10 27–40
+
+    Model memprediksi responden berada pada kategori **{predicted_label}**, 
+    yang dalam kategorisasi PSS-10 berada pada rentang **{predicted_range}**.
+
+    **Catatan:** model tidak mengetahui skor PSS-10 individu secara langsung.
+    PSS-10 merupakan variabel target, sedangkan input model adalah **PASS**
+    sebagai faktor akademik dan **PSQI** sebagai kualitas tidur.
+    Oleh karena itu, hasil tersebut merupakan **prediksi kategori tingkat stres**,
+    bukan pengukuran langsung skor PSS-10 individu.
+    """
+)
+
+st.markdown("#### 📊 Probabilitas Prediksi Model")
+
+probability_df = pd.DataFrame({
+    "Kategori Tingkat Stres": class_labels,
+    "Probabilitas Model": [
+        f"{p * 100:.2f}%" for p in probabilities
+    ]
+})
+
+st.dataframe(
+    probability_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+st.caption(
+    "Probabilitas menunjukkan tingkat keyakinan model SVM terhadap masing-masing "
+    "kategori kelas, bukan persentase tingkat stres individu."
+)
+
     # --------------------------------------------------------
     # MENENTUKAN POSISI KELAS HASIL PREDIKSI
     # --------------------------------------------------------
