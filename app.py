@@ -858,8 +858,8 @@ st.bar_chart(
 )
 
 st.caption(
-    "Interpretasi distribusi ini terbatas pada responden penelitian yang "
-    "terdapat dalam hasil_prediksi_final.csv dan bukan estimasi prevalensi "
+    "Interpretasi distribusi ini terbatas pada 150 responden penelitian yang "
+    "digunakan dalam dataset dan bukan merupakan estimasi prevalensi tingkat stres "
     "untuk seluruh populasi mahasiswa UNSRAT."
 )
 
