@@ -662,33 +662,38 @@ st.caption(f"Jumlah responden yang digunakan pada distribusi: **{len(hasil_predi
 st.subheader("Prediksi Tingkat Stres pada Seluruh 150 Responden Penelitian")
 
 st.write(
-    "Fitur ini menerapkan model SVM secara langsung pada seluruh "
-    "150 responden penelitian sekaligus menggunakan skor PASS dan "
-    "PSQI yang terdapat pada dataset penelitian. Responden tidak "
-    "perlu dimasukkan satu per satu."
+    "Fitur ini menerapkan model SVM final secara langsung pada "
+    "150 responden penelitian menggunakan skor PASS dan PSQI "
+    "yang terdapat pada dataset penelitian."
 )
 
 st.caption(
-    "Hasil batch prediction berlaku untuk 150 responden sampel penelitian "
-    "yang dipilih secara proporsional, bukan prediksi individual untuk "
-    "seluruh populasi mahasiswa UNSRAT."
+    "Hasil batch prediction berlaku untuk 150 responden sampel "
+    "penelitian yang dipilih secara proporsional, bukan prediksi "
+    "untuk seluruh populasi mahasiswa UNSRAT."
 )
 
 batch_required = ["PASS", "PSQI"]
+
 batch_missing = [
     col for col in batch_required
     if col not in hasil_prediksi_final.columns
 ]
 
 if batch_missing:
-    st.warning(
-        "Batch prediction tidak dapat dijalankan karena kolom berikut "
-        f"tidak tersedia pada hasil_prediksi_final.csv: {batch_missing}"
-    )
-else:
-    batch_data = hasil_prediksi_final[batch_required].copy()
 
-    # Pastikan seluruh input batch berupa numerik.
+    st.error(
+        "Batch prediction tidak dapat dijalankan karena kolom "
+        f"berikut tidak tersedia: {batch_missing}"
+    )
+
+else:
+
+    batch_data = hasil_prediksi_final[
+        batch_required
+    ].copy()
+
+    # Pastikan PASS dan PSQI berupa numerik
     for col in batch_required:
         batch_data[col] = pd.to_numeric(
             batch_data[col],
@@ -698,52 +703,25 @@ else:
     invalid_batch = batch_data.isna().any(axis=1)
 
     if invalid_batch.any():
+
         st.warning(
-            f"Terdapat {invalid_batch.sum()} baris dengan nilai PASS/PSQI "
-            "yang tidak valid. Batch prediction tidak dijalankan agar "
-            "hasil penelitian tidak berubah atau diisi secara otomatis."
+            f"Terdapat {invalid_batch.sum()} baris dengan nilai "
+            "PASS/PSQI yang tidak valid. Batch prediction tidak "
+            "dijalankan."
         )
+
     else:
+
+        # Prediksi menggunakan model final
         batch_encoded = model.predict(batch_data)
 
-        batch_labels = label_encoder.inverse_transform(
-            batch_encoded
-        )
-
-if batch_missing:
-    st.warning(
-        "Batch prediction tidak dapat dijalankan karena kolom berikut "
-        f"tidak tersedia pada hasil_prediksi_final.csv: {batch_missing}"
-    )
-else:
-    batch_data = hasil_prediksi_final[batch_required].copy()
-
-    for col in batch_required:
-        batch_data[col] = pd.to_numeric(
-            batch_data[col],
-            errors="coerce"
-        )
-
-    invalid_batch = batch_data.isna().any(axis=1)
-
-    if invalid_batch.any():
-        st.warning(
-            f"Terdapat {invalid_batch.sum()} baris dengan nilai PASS/PSQI "
-            "yang tidak valid. Batch prediction tidak dijalankan agar "
-            "hasil penelitian tidak berubah atau diisi secara otomatis."
-        )
-    else:
-        batch_encoded = model.predict(batch_data)
-
+        # Konversi hasil encoded ke label asli
         batch_labels = label_encoder.inverse_transform(
             batch_encoded
         )
 
         batch_result = hasil_prediksi_final.copy()
-        batch_result["Prediksi_Batch"] = batch_labels
 
-        # semua analisis distribusi yang menggunakan
-        # Prediksi_Batch diletakkan di sini
         batch_result["Prediksi_Batch"] = batch_labels
 
         st.success(
@@ -864,11 +842,17 @@ st.caption(
 )
 
 # ============================================================
-# HASIL SHAP FINAL PENELITIAN
+# HASIL GLOBAL SHAP FINAL PENELITIAN
 # ============================================================
 
-global_shap = pd.DataFrame({
+# Nilai berikut berasal dari hasil analisis SHAP final
+# pada notebook Google Colab menggunakan model final.
+#
+# Mean Absolute SHAP:
+# PSQI = 0.027112
+# PASS = 0.021735
 
+global_shap = pd.DataFrame({
     "Fitur": [
         "PSQI",
         "PASS"
@@ -878,33 +862,23 @@ global_shap = pd.DataFrame({
         0.027112,
         0.021735
     ]
-
 })
 
-
-# Menghitung kontribusi persentase
-# berdasarkan hasil SHAP final
-
+# Menghitung kontribusi relatif
 total_shap = global_shap[
     "Mean Absolute SHAP"
 ].sum()
 
-
 global_shap["Kontribusi (%)"] = (
-
     global_shap["Mean Absolute SHAP"]
-
     / total_shap
-
     * 100
 )
 
-
-# Urutkan berdasarkan nilai SHAP
 global_shap = global_shap.sort_values(
     "Mean Absolute SHAP",
     ascending=False
-)
+).reset_index(drop=True)
 
 # ============================================================
 # DISTRIBUSI PREDIKSI BERDASARKAN FAKULTAS
@@ -1013,8 +987,9 @@ st.divider()
 st.header("5. Global Feature Importance — SHAP")
 
 st.write(
-    "Berdasarkan hasil analisis SHAP pada model final, kontribusi global "
-    "fitur dihitung menggunakan rata-rata nilai absolut SHAP."
+    "Berdasarkan hasil analisis SHAP pada model final penelitian, "
+    "kontribusi global fitur dihitung menggunakan rata-rata "
+    "nilai absolut SHAP."
 )
 
 # ============================================================
@@ -1072,13 +1047,22 @@ dominant_global_percentage = global_shap.iloc[0][
 
 
 st.info(
+    f"""
+    Berdasarkan analisis global SHAP, fitur yang memiliki
+    kontribusi relatif terbesar terhadap output model adalah
+    **{dominant_global_feature}** dengan Mean Absolute SHAP
+    sebesar **{dominant_global_value:.6f}** atau sekitar
+    **{dominant_global_percentage:.2f}%** dari total kontribusi
+    fitur yang dianalisis.
 
-    f"Berdasarkan analisis global SHAP, fitur yang memiliki "
-    f"kontribusi terbesar terhadap output model adalah "
-    f"**{dominant_global_feature}** dengan Mean Absolute SHAP "
-    f"sebesar **{dominant_global_value:.6f}** atau sekitar "
-    f"**{dominant_global_percentage:.2f}%** dari total kontribusi "
-    f"fitur yang dianalisis."
+    Hal ini menunjukkan bahwa **{dominant_global_feature}**
+    memiliki kontribusi relatif lebih besar dalam menjelaskan
+    keluaran model pada data penelitian.
+
+    **Catatan:** hasil SHAP menjelaskan perilaku model dalam
+    menggunakan fitur untuk menghasilkan prediksi dan tidak
+    menunjukkan hubungan sebab-akibat.
+    """
 )
 
 
