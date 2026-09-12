@@ -266,7 +266,7 @@ with st.sidebar:
 tab_prediction, tab_batch, tab_faculty, tab_shap = st.tabs(
     [
         "🔍 Prediksi Individu",
-        "👥 150 Responden",
+        "👥 Seluruh Responden",
         "🏫 Berdasarkan Fakultas",
         "🧩 Global SHAP"
     ]
@@ -706,10 +706,11 @@ else:
 # TAB 2 — 150 RESPONDEN
 # ============================================================
 with tab_batch:
-    st.header("Distribusi Prediksi pada 150 Responden Penelitian")
+    st.header("Prediksi Seluruh Responden yang Mewakili Mahasiswa Semester Akhir Universitas Sam Ratulangi")
     st.markdown(
         '<p class="section-intro">Model SVM final diterapkan secara langsung pada '
-        '150 responden penelitian menggunakan skor PASS dan PSQI yang terdapat dalam '
+        '150 responden penelitian sebagai sampel yang mewakili mahasiswa semester akhir UNSRAT '
+        'menggunakan skor PASS dan PSQI yang terdapat dalam '
         'dataset penelitian.</p>',
         unsafe_allow_html=True
     )
