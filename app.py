@@ -180,13 +180,19 @@ st.markdown(
 @st.cache_resource
 def load_model():
     model = joblib.load("svm_model_final.pkl")
-    label_encoder = joblib.load("label_encoder.pkl")
     feature_names = joblib.load("feature_names.pkl")
     background = joblib.load("shap_background.pkl")
 
-    return model, label_encoder, feature_names, background
+    return model, feature_names, background
 
-model, label_encoder, feature_names, background = load_model()
+
+try:
+    model, feature_names, background = load_model()
+
+except Exception as e:
+    st.error("Model atau file pendukung tidak dapat dimuat.")
+    st.code(str(e))
+    st.stop()
 
 
 # ============================================================
@@ -204,13 +210,31 @@ if list(feature_names) != expected_features:
 
 
 # ============================================================
+# VALIDASI MODEL
+# ============================================================
+try:
+    model_classes = model.classes_
+
+except AttributeError:
+    st.error(
+        "Model tidak memiliki atribut classes_. "
+        "Pastikan svm_model_final.pkl merupakan model SVM final penelitian."
+    )
+    st.stop()
+
+
+# ============================================================
 # HEADER
 # ============================================================
 st.markdown(
     """
     <div class="hero">
         <div class="hero-kicker">Sistem Prediksi Berbasis Machine Learning</div>
-        <div class="hero-title">🧠 Prediksi Tingkat Stres Mahasiswa Semester Akhir</div>
+
+        <div class="hero-title">
+            🧠 Prediksi Tingkat Stres Mahasiswa Semester Akhir
+        </div>
+
         <p class="hero-subtitle">
             Universitas Sam Ratulangi menggunakan algoritma
             <strong>Support Vector Machine (SVM)</strong> dengan pendekatan
@@ -237,7 +261,9 @@ st.caption(
 # SIDEBAR INFORMASI
 # ============================================================
 with st.sidebar:
+
     st.markdown("### 🧠 Informasi Sistem")
+
     st.markdown(
         "Aplikasi ini merupakan implementasi model SVM final penelitian "
         "untuk memprediksi kategori tingkat stres berdasarkan skor PASS dan PSQI."
@@ -254,9 +280,18 @@ with st.sidebar:
 
     st.divider()
 
+    st.markdown("**Model SVM**")
+    st.write("• Kernel: RBF")
+    st.write("• C: 100")
+    st.write("• Gamma: 0.1")
+    st.write("• Class weight: balanced")
+    st.write("• StandardScaler: Ya")
+
+    st.divider()
+
     st.caption(
-        "PSS-10 tidak digunakan sebagai input model. Skor PSS-10 digunakan "
-        "untuk membentuk kategori target tingkat stres."
+        "PSS-10 tidak digunakan sebagai input model. "
+        "Skor PSS-10 digunakan untuk membentuk kategori target tingkat stres."
     )
 
 
@@ -274,21 +309,86 @@ tab_prediction, tab_batch, tab_faculty, tab_shap = st.tabs(
 
 
 # ============================================================
-# FUNGSI SHAP
+# FUNGSI MODEL UNTUK SHAP
 # ============================================================
-def predict_proba_for_shap(data):
+def model_decision_for_shap(data):
+
     data_df = pd.DataFrame(
         data,
         columns=feature_names
     )
 
-    return model.predict_proba(data_df)
+    return model.decision_function(data_df)
 
+
+# ============================================================
+# SHAP EXPLAINER
+# ============================================================
 @st.cache_resource
 def create_shap_explainer():
+
     return shap.KernelExplainer(
-        predict_proba_for_shap,
+        model_decision_for_shap,
         background
+    )
+
+
+# ============================================================
+# FUNGSI MENGAMBIL SHAP LOCAL
+# ============================================================
+def extract_local_shap(shap_values, predicted_class_index):
+
+    shap_array = np.asarray(shap_values)
+
+    # --------------------------------------------------------
+    # Bentuk list
+    # --------------------------------------------------------
+    if isinstance(shap_values, list):
+
+        values = np.asarray(
+            shap_values[predicted_class_index]
+        )
+
+        if values.ndim == 2:
+            return values[0]
+
+        return values
+
+    # --------------------------------------------------------
+    # Bentuk 3 dimensi
+    # --------------------------------------------------------
+    if shap_array.ndim == 3:
+
+        # (samples, features, classes)
+        if shap_array.shape[0] == 1:
+
+            return shap_array[
+                0,
+                :,
+                predicted_class_index
+            ]
+
+        # (samples, classes, features)
+        if shap_array.shape[1] == len(model_classes):
+
+            return shap_array[
+                0,
+                predicted_class_index,
+                :
+            ]
+
+    # --------------------------------------------------------
+    # Bentuk 2 dimensi
+    # --------------------------------------------------------
+    if shap_array.ndim == 2:
+
+        return shap_array[0]
+
+    # --------------------------------------------------------
+    # Jika tidak dikenali
+    # --------------------------------------------------------
+    raise ValueError(
+        f"Bentuk SHAP Values tidak dikenali: {shap_array.shape}"
     )
 
 
@@ -296,19 +396,33 @@ def create_shap_explainer():
 # TAB 1 — PREDIKSI INDIVIDU
 # ============================================================
 with tab_prediction:
+
     st.header("Prediksi Tingkat Stres Mahasiswa")
+
     st.markdown(
-        '<p class="section-intro">Masukkan skor variabel prediktor penelitian. '
-        'Model menggunakan <strong>PASS</strong> sebagai faktor akademik dan '
-        '<strong>PSQI</strong> sebagai kualitas pola tidur. PSS-10 tidak dimasukkan '
-        'sebagai input karena digunakan sebagai dasar pembentukan target tingkat stres.</p>',
+        '<p class="section-intro">'
+        'Masukkan skor variabel prediktor penelitian. '
+        'Model menggunakan <strong>PASS</strong> sebagai faktor akademik '
+        'dan <strong>PSQI</strong> sebagai kualitas pola tidur. '
+        'PSS-10 tidak dimasukkan sebagai input karena digunakan sebagai '
+        'dasar pembentukan target tingkat stres.'
+        '</p>',
         unsafe_allow_html=True
     )
 
     input_col1, input_col2 = st.columns(2, gap="large")
 
+
+    # ========================================================
+    # INPUT PASS
+    # ========================================================
     with input_col1:
-        st.markdown('<div class="input-card">', unsafe_allow_html=True)
+
+        st.markdown(
+            '<div class="input-card">',
+            unsafe_allow_html=True
+        )
+
         pass_score = st.number_input(
             "Skor PASS (Faktor Akademik)",
             min_value=40.0,
@@ -316,15 +430,31 @@ with tab_prediction:
             value=None,
             step=1.0,
             help=(
-                "Masukkan skor PASS. Rentang 40–68 merupakan rentang skor PASS "
-                "yang terdapat pada 150 responden dalam dataset penelitian."
+                "Masukkan skor PASS. Rentang 40–68 merupakan "
+                "rentang skor PASS yang terdapat pada dataset penelitian."
             )
         )
-        st.caption("Rentang pada dataset penelitian: 40–68")
-        st.markdown('</div>', unsafe_allow_html=True)
 
+        st.caption(
+            "Rentang pada dataset penelitian: 40–68"
+        )
+
+        st.markdown(
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+
+    # ========================================================
+    # INPUT PSQI
+    # ========================================================
     with input_col2:
-        st.markdown('<div class="input-card">', unsafe_allow_html=True)
+
+        st.markdown(
+            '<div class="input-card">',
+            unsafe_allow_html=True
+        )
+
         psqi_score = st.number_input(
             "Skor PSQI (Kualitas Pola Tidur)",
             min_value=2.0,
@@ -332,113 +462,138 @@ with tab_prediction:
             value=None,
             step=1.0,
             help=(
-                "Masukkan skor PSQI. Rentang 2–18 merupakan rentang skor PSQI "
-                "yang terdapat pada 150 responden dalam dataset penelitian."
+                "Masukkan skor PSQI. Rentang 2–18 merupakan "
+                "rentang skor PSQI yang terdapat pada dataset penelitian."
             )
         )
-        st.caption("Rentang pada dataset penelitian: 2–18")
-        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.caption(
+            "Rentang pada dataset penelitian: 2–18"
+        )
+
+        st.markdown(
+            '</div>',
+            unsafe_allow_html=True
+        )
+
 
     st.write("")
 
+
+    # ========================================================
+    # BUTTON PREDIKSI
+    # ========================================================
     predict_button = st.button(
         "🔍  Prediksi Tingkat Stres",
         type="primary",
         use_container_width=True
     )
 
+
     if predict_button:
+
         if pass_score is None or psqi_score is None:
+
             st.warning(
-                "Silakan masukkan skor PASS dan PSQI terlebih dahulu sebelum melakukan prediksi."
+                "Silakan masukkan skor PASS dan PSQI terlebih dahulu "
+                "sebelum melakukan prediksi."
             )
+
             st.stop()
 
-        # --------------------------------------------------------
+
+        # ====================================================
         # DATA INPUT
-        # --------------------------------------------------------
+        # ====================================================
         input_data = pd.DataFrame(
             [[pass_score, psqi_score]],
             columns=feature_names
         )
 
-        # --------------------------------------------------------
-        # PREDIKSI MODEL SVM
-        # --------------------------------------------------------
-        prediction_encoded = model.predict(input_data)
 
-        prediction_label = label_encoder.inverse_transform(
-            prediction_encoded
-        )[0]
+        # ====================================================
+        # PREDIKSI SVM
+        # ====================================================
+        prediction = model.predict(input_data)
 
-        # --------------------------------------------------------
-        # PROBABILITAS PREDIKSI
-        # --------------------------------------------------------
-        probabilities = model.predict_proba(input_data)[0]
-        model_class_encoded = model.classes_
-        model_class_labels = label_encoder.inverse_transform(
-            model_class_encoded
-        )
+        prediction_label = prediction[0]
 
-        probability_df = pd.DataFrame({
-            "Tingkat Stres": model_class_labels,
-            "Probabilitas (%)": probabilities * 100
-        })
 
-        # Posisi kelas hasil prediksi pada output predict_proba()
+        # ====================================================
+        # POSISI KELAS
+        # ====================================================
         predicted_class_index = np.where(
-            model_class_encoded == prediction_encoded[0]
+            model_classes == prediction_label
         )[0][0]
 
-        predicted_class_probability = probabilities[
-            predicted_class_index
-        ] * 100
 
-        # --------------------------------------------------------
-        # HASIL PREDIKSI UTAMA
-        # --------------------------------------------------------
+        # ====================================================
+        # HASIL PREDIKSI
+        # ====================================================
         st.divider()
+
         st.subheader("Hasil Prediksi Model")
-        st.caption(
-            "Hasil utama ditentukan menggunakan `model.predict()`. "
-            "Nilai `predict_proba()` ditampilkan sebagai informasi tambahan."
+
+
+        result_col, info_col = st.columns(
+            2,
+            gap="large"
         )
 
-        result_col, prob_col = st.columns(2, gap="large")
 
         with result_col:
+
             st.markdown(
                 f"""
                 <div class="result-card">
-                    <div class="result-label">Prediksi Model SVM</div>
-                    <div class="result-value">{prediction_label}</div>
-                    <div class="result-note">
-                        Kategori tingkat stres yang dihasilkan langsung oleh
-                        <strong>model.predict()</strong>.
+
+                    <div class="result-label">
+                        Prediksi Model SVM
                     </div>
+
+                    <div class="result-value">
+                        {prediction_label}
+                    </div>
+
+                    <div class="result-note">
+                        Kategori tingkat stres yang dihasilkan langsung
+                        oleh <strong>model.predict()</strong>.
+                    </div>
+
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-        with prob_col:
+
+        with info_col:
+
             st.markdown(
                 f"""
                 <div class="result-card">
-                    <div class="result-label">Probabilitas Kelas Hasil Prediksi</div>
-                    <div class="result-value">{predicted_class_probability:.2f}%</div>
-                    <div class="result-note">
-                        Probabilitas kelas <strong>{prediction_label}</strong>
-                        berdasarkan <strong>predict_proba()</strong>.
+
+                    <div class="result-label">
+                        Input Model
                     </div>
+
+                    <div class="result-value">
+                        PASS + PSQI
+                    </div>
+
+                    <div class="result-note">
+                        PASS = {pass_score:.0f} &nbsp; | &nbsp;
+                        PSQI = {psqi_score:.0f}
+                    </div>
+
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-        # --------------------------------------------------------
-        # INTERPRETASI HASIL PREDIKSI
-        # --------------------------------------------------------
+
+        # ====================================================
+        # INTERPRETASI HASIL
+        # ====================================================
         st.markdown("### 🧠 Interpretasi Hasil")
 
         stress_category_info = {
@@ -456,158 +611,187 @@ with tab_prediction:
             f"""
             **Hasil prediksi model: {prediction_label}**
 
-            Berdasarkan kategori tingkat stres yang digunakan dalam penelitian:
+            Berdasarkan kategorisasi tingkat stres yang digunakan
+            dalam penelitian:
 
             - **Rendah:** skor PSS-10 0–13
             - **Sedang:** skor PSS-10 14–26
             - **Tinggi:** skor PSS-10 27–40
 
-            Model memprediksi responden berada pada kategori **{prediction_label}**,
-            yang dalam kategorisasi PSS-10 berada pada rentang **{predicted_range}**.
+            Model memprediksi input berada pada kategori
+            **{prediction_label}** berdasarkan skor **PASS** dan **PSQI**.
 
-            **Catatan:** model tidak mengetahui skor PSS-10 individu secara langsung.
-            PSS-10 merupakan variabel target, sedangkan input model adalah
-            **PASS** sebagai faktor akademik dan **PSQI** sebagai kualitas pola tidur.
-            Oleh karena itu, hasil tersebut merupakan **prediksi kategori tingkat stres**,
-            bukan pengukuran langsung skor PSS-10 individu.
+            Kategori tersebut berada pada rentang skor PSS-10
+            **{predicted_range}** yang digunakan sebagai dasar
+            pembentukan target penelitian.
+
+            **Catatan:** model tidak mengetahui skor PSS-10 individu
+            secara langsung. PSS-10 merupakan variabel target,
+            sedangkan input model adalah PASS dan PSQI.
             """
         )
 
-        # --------------------------------------------------------
-        # PROBABILITAS SETIAP KELAS
-        # --------------------------------------------------------
-        st.markdown("### 📊 Probabilitas Prediksi Setiap Kelas")
-        st.caption(
-            "Probabilitas merupakan keluaran `model.predict_proba()` untuk masing-masing "
-            "kategori tingkat stres."
-        )
 
-        probability_col1, probability_col2 = st.columns([1, 1.35], gap="large")
-
-        with probability_col1:
-            st.dataframe(
-                probability_df.style.format({
-                    "Probabilitas (%)": "{:.2f}%"
-                }),
-                use_container_width=True,
-                hide_index=True
-            )
-
-        with probability_col2:
-            chart_data = probability_df.set_index("Tingkat Stres")
-            st.bar_chart(chart_data["Probabilitas (%)"], height=260)
-
-        st.caption(
-            "Probabilitas menunjukkan tingkat keyakinan model SVM terhadap masing-masing "
-            "kategori kelas, bukan persentase tingkat stres individu."
-        )
-
-        # --------------------------------------------------------
-        # PENJELASAN predict() DAN predict_proba()
-        # --------------------------------------------------------
-        with st.expander("ℹ️ Mengapa hasil `predict()` dan `predict_proba()` ditampilkan terpisah?"):
-            st.markdown(
-                """
-                - **`model.predict()`** digunakan sebagai **hasil prediksi utama model SVM**, """
-                """
-                  yaitu menentukan satu kategori tingkat stres: Rendah, Sedang, atau Tinggi.
-                - **`model.predict_proba()`** digunakan untuk menampilkan **probabilitas masing-masing
-                  kelas** sebagai informasi tambahan mengenai keluaran model.
-
-                Oleh karena itu, kategori yang ditampilkan pada **Prediksi Model SVM** tetap
-                mengikuti hasil `model.predict()`, sedangkan probabilitas digunakan untuk melihat
-                distribusi keyakinan model terhadap masing-masing kelas.
-                """
-            )
-
-        # --------------------------------------------------------
+        # ====================================================
         # SHAP LOCAL
-        # --------------------------------------------------------
+        # ====================================================
         st.divider()
-        st.subheader("🧩 Explainable AI — SHAP Lokal")
+
+        st.subheader(
+            "🧩 Explainable AI — SHAP Lokal"
+        )
+
         st.markdown(
-            '<p class="section-intro">SHAP digunakan untuk menjelaskan kontribusi '
-            'masing-masing fitur terhadap output kelas yang diprediksi oleh model.</p>',
+            '<p class="section-intro">'
+            'SHAP digunakan untuk menjelaskan kontribusi masing-masing '
+            'fitur terhadap output <strong>decision function</strong> '
+            'kelas yang diprediksi oleh model SVM.'
+            '</p>',
             unsafe_allow_html=True
         )
 
-        with st.spinner("Menghitung penjelasan SHAP..."):
-            explainer = create_shap_explainer()
-            shap_values = explainer.shap_values(
-                input_data,
-                nsamples=100
-            )
 
-        shap_array = np.asarray(shap_values)
+        # ====================================================
+        # HITUNG SHAP
+        # ====================================================
+        with st.spinner(
+            "Menghitung penjelasan SHAP..."
+        ):
 
-        if isinstance(shap_values, list):
-            local_shap = np.asarray(
-                shap_values[predicted_class_index]
-            )[0]
+            try:
 
-        elif shap_array.ndim == 3:
-            local_shap = shap_array[
-                0,
-                :,
-                predicted_class_index
-            ]
+                explainer = create_shap_explainer()
 
-        elif shap_array.ndim == 2:
-            local_shap = shap_array[0]
+                shap_values = explainer.shap_values(
+                    input_data,
+                    nsamples=100
+                )
 
-        else:
-            st.error(
-                f"Bentuk SHAP Values tidak dikenali: {shap_array.shape}"
-            )
-            st.stop()
+                local_shap = extract_local_shap(
+                    shap_values,
+                    predicted_class_index
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "SHAP tidak dapat dihitung untuk input ini."
+                )
+
+                st.code(str(e))
+
+                st.stop()
+
+
+        # ====================================================
+        # VALIDASI SHAP
+        # ====================================================
+        local_shap = np.asarray(
+            local_shap,
+            dtype=float
+        )
+
 
         if len(local_shap) != len(feature_names):
+
             st.error(
-                "Jumlah nilai SHAP tidak sesuai dengan jumlah fitur. "
-                f"Jumlah SHAP: {len(local_shap)}, "
-                f"jumlah fitur: {len(feature_names)}."
+                "Jumlah nilai SHAP tidak sesuai dengan jumlah fitur."
             )
+
+            st.write(
+                "Jumlah SHAP:",
+                len(local_shap)
+            )
+
+            st.write(
+                "Jumlah fitur:",
+                len(feature_names)
+            )
+
             st.stop()
 
-        shap_df = pd.DataFrame({
-            "Fitur": feature_names,
-            "Nilai Input": [
-                pass_score,
-                psqi_score
-            ],
-            "SHAP Value": local_shap
-        })
 
-        shap_df["Kontribusi Absolut"] = shap_df["SHAP Value"].abs()
+        # ====================================================
+        # TABEL SHAP
+        # ====================================================
+        shap_df = pd.DataFrame(
+            {
+                "Fitur": feature_names,
+
+                "Nilai Input": [
+                    pass_score,
+                    psqi_score
+                ],
+
+                "SHAP Value": local_shap
+            }
+        )
+
+
+        shap_df["Kontribusi Absolut"] = (
+            shap_df["SHAP Value"].abs()
+        )
+
+
         shap_df = shap_df.sort_values(
             "Kontribusi Absolut",
             ascending=False
+        ).reset_index(drop=True)
+
+
+        # ====================================================
+        # FITUR DOMINAN
+        # ====================================================
+        dominant_feature = (
+            shap_df.iloc[0]["Fitur"]
         )
 
-        dominant_feature = shap_df.iloc[0]["Fitur"]
-        dominant_value = shap_df.iloc[0]["SHAP Value"]
-        dominant_abs_value = shap_df.iloc[0]["Kontribusi Absolut"]
+        dominant_value = (
+            shap_df.iloc[0]["SHAP Value"]
+        )
+
+        dominant_abs_value = (
+            shap_df.iloc[0]["Kontribusi Absolut"]
+        )
+
 
         if dominant_value > 0:
+
             direction = (
-                "memberikan kontribusi positif terhadap "
-                f"output kelas **{prediction_label}**"
-            )
-        elif dominant_value < 0:
-            direction = (
-                "memberikan kontribusi negatif terhadap "
-                f"output kelas **{prediction_label}**"
-            )
-        else:
-            direction = (
-                "tidak memberikan kontribusi positif maupun negatif yang berarti "
-                f"terhadap output kelas **{prediction_label}**"
+                f"memberikan kontribusi positif terhadap "
+                f"output kelas {prediction_label}"
             )
 
-        shap_col1, shap_col2 = st.columns([1, 1.2], gap="large")
+        elif dominant_value < 0:
+
+            direction = (
+                f"memberikan kontribusi negatif terhadap "
+                f"output kelas {prediction_label}"
+            )
+
+        else:
+
+            direction = (
+                f"tidak menunjukkan kontribusi positif maupun "
+                f"negatif terhadap output kelas {prediction_label}"
+            )
+
+
+        # ====================================================
+        # TAMPILKAN SHAP
+        # ====================================================
+        shap_col1, shap_col2 = st.columns(
+            [1, 1.2],
+            gap="large"
+        )
+
 
         with shap_col1:
-            st.markdown("**Nilai SHAP Lokal**")
+
+            st.markdown(
+                "**Nilai SHAP Lokal**"
+            )
+
             st.dataframe(
                 shap_df[
                     [
@@ -615,192 +799,345 @@ with tab_prediction:
                         "Nilai Input",
                         "SHAP Value"
                     ]
-                ].style.format({
-                    "Nilai Input": "{:.2f}",
-                    "SHAP Value": "{:.6f}"
-                }),
+                ].style.format(
+                    {
+                        "Nilai Input": "{:.2f}",
+                        "SHAP Value": "{:.6f}"
+                    }
+                ),
                 use_container_width=True,
                 hide_index=True
             )
 
-        with shap_col2:
-            st.markdown("**Kontribusi Fitur terhadap Prediksi**")
-            shap_chart = shap_df[
-                ["Fitur", "SHAP Value"]
-            ].set_index("Fitur")
-            st.bar_chart(shap_chart["SHAP Value"], height=260)
 
+        with shap_col2:
+
+            st.markdown(
+                "**Kontribusi Fitur terhadap Prediksi**"
+            )
+
+            shap_chart = (
+                shap_df[
+                    ["Fitur", "SHAP Value"]
+                ]
+                .set_index("Fitur")
+            )
+
+            st.bar_chart(
+                shap_chart["SHAP Value"],
+                height=260
+            )
+
+
+        # ====================================================
+        # INTERPRETASI SHAP
+        # ====================================================
         st.info(
             f"""
-            Pada input yang diberikan, fitur dengan kontribusi absolut terbesar adalah
-            **{dominant_feature}** dengan nilai SHAP **{dominant_value:.6f}**.
+            Pada input yang diberikan, fitur dengan kontribusi
+            absolut terbesar adalah **{dominant_feature}**
+            dengan nilai SHAP **{dominant_value:.6f}**.
 
-            Nilai absolut SHAP sebesar **{dominant_abs_value:.6f}** menunjukkan bahwa
-            fitur tersebut merupakan fitur yang paling besar kontribusinya dalam menjelaskan
-            output model pada input ini.
+            Nilai absolut SHAP sebesar **{dominant_abs_value:.6f}**
+            menunjukkan bahwa fitur tersebut memiliki kontribusi
+            terbesar dalam menjelaskan output model pada input ini.
 
             Secara arah, fitur tersebut {direction}.
+
+            **Catatan:** nilai SHAP menjelaskan perilaku model
+            dan tidak menunjukkan hubungan sebab-akibat.
             """
         )
 
-        with st.expander("📖 Cara membaca nilai SHAP"):
+
+        # ====================================================
+        # PENJELASAN SHAP
+        # ====================================================
+        with st.expander(
+            "📖 Cara membaca nilai SHAP"
+        ):
+
             st.markdown(
                 """
-                Nilai SHAP positif menunjukkan kontribusi yang meningkatkan output kelas
-                yang sedang dijelaskan relatif terhadap nilai dasar (baseline) model.
-                Nilai SHAP negatif menunjukkan kontribusi yang menurunkan output kelas tersebut.
-                Semakin besar nilai absolut SHAP, semakin besar kontribusi fitur pada input yang dianalisis.
+                **Nilai SHAP positif** menunjukkan kontribusi yang
+                meningkatkan output decision function kelas yang
+                sedang dijelaskan relatif terhadap nilai dasar model.
 
-                **Catatan:** nilai SHAP menjelaskan kontribusi fitur terhadap output model
-                dan **tidak menunjukkan hubungan sebab-akibat**.
+                **Nilai SHAP negatif** menunjukkan kontribusi yang
+                menurunkan output decision function kelas tersebut.
+
+                Semakin besar nilai absolut SHAP, semakin besar
+                kontribusi fitur pada input yang dianalisis.
+
+                **Catatan penting:** SHAP menjelaskan kontribusi
+                fitur terhadap output model dan tidak menunjukkan
+                hubungan sebab-akibat.
                 """
             )
 
 
 # ============================================================
-# DATA PREDIKSI 150 RESPONDEN
+# LOAD DATA 150 RESPONDEN
 # ============================================================
 @st.cache_data
 def load_prediction_data():
-    return pd.read_csv("hasil_prediksi_final.csv")
+
+    return pd.read_csv(
+        "hasil_prediksi_final.csv"
+    )
 
 
-hasil_prediksi_final = load_prediction_data()
+try:
 
-required_columns = [
-    "Fakultas",
-    "PASS",
-    "PSQI"
-]
+    hasil_prediksi_final = load_prediction_data()
 
-missing_columns = [
-    col for col in required_columns
-    if col not in hasil_prediksi_final.columns
-]
+except Exception as e:
 
-if missing_columns:
-    batch_result = None
-else:
-    batch_required = ["PASS", "PSQI"]
-    batch_data = hasil_prediksi_final[batch_required].copy()
+    hasil_prediksi_final = None
 
-    for col in batch_required:
-        batch_data[col] = pd.to_numeric(
-            batch_data[col],
-            errors="coerce"
+    st.warning(
+        "File hasil_prediksi_final.csv tidak dapat dimuat."
+    )
+
+
+# ============================================================
+# VALIDASI DATA BATCH
+# ============================================================
+batch_result = None
+
+if hasil_prediksi_final is not None:
+
+    required_columns = [
+        "Fakultas",
+        "PASS",
+        "PSQI"
+    ]
+
+    missing_columns = [
+        col
+        for col in required_columns
+        if col not in hasil_prediksi_final.columns
+    ]
+
+    if missing_columns:
+
+        batch_result = None
+
+    else:
+
+        batch_data = (
+            hasil_prediksi_final[
+                ["PASS", "PSQI"]
+            ]
+            .copy()
         )
 
-    invalid_batch = batch_data.isna().any(axis=1)
+        for col in ["PASS", "PSQI"]:
 
-    if invalid_batch.any():
-        batch_result = None
-    else:
-        batch_encoded = model.predict(batch_data)
-        batch_labels = label_encoder.inverse_transform(batch_encoded)
+            batch_data[col] = pd.to_numeric(
+                batch_data[col],
+                errors="coerce"
+            )
 
-        batch_result = hasil_prediksi_final.copy()
-        batch_result["Prediksi_Batch"] = batch_labels
+
+        invalid_batch = (
+            batch_data.isna().any(axis=1)
+        )
+
+
+        if not invalid_batch.any():
+
+            batch_encoded = model.predict(
+                batch_data
+            )
+
+            batch_labels = np.asarray(
+                batch_encoded
+            )
+
+            batch_result = (
+                hasil_prediksi_final.copy()
+            )
+
+            batch_result["Prediksi_Batch"] = (
+                batch_labels
+            )
 
 
 # ============================================================
 # TAB 2 — 150 RESPONDEN
 # ============================================================
 with tab_batch:
-    st.header("Prediksi Seluruh Responden yang Mewakili Mahasiswa Semester Akhir Universitas Sam Ratulangi")
+
+    st.header(
+        "Prediksi Tingkat Stres pada 150 Responden Penelitian"
+    )
+
     st.markdown(
-        '<p class="section-intro">Model SVM final diterapkan secara langsung pada '
-        '150 responden penelitian sebagai sampel yang mewakili mahasiswa semester akhir UNSRAT '
-        'menggunakan skor PASS dan PSQI yang terdapat dalam '
-        'dataset penelitian.</p>',
+        '<p class="section-intro">'
+        'Model SVM final diterapkan pada 150 responden '
+        'sampel penelitian menggunakan skor PASS dan PSQI.'
+        '</p>',
         unsafe_allow_html=True
     )
 
-    if missing_columns:
-        st.error(
-            "Data batch prediction tidak dapat ditampilkan karena kolom berikut tidak "
-            f"tersedia pada hasil_prediksi_final.csv: {missing_columns}"
-        )
-    elif batch_result is None:
+
+    if batch_result is None:
+
         st.warning(
-            "Batch prediction tidak dapat dijalankan karena terdapat nilai PASS/PSQI "
-            "yang tidak valid pada dataset."
-        )
-    else:
-        st.caption(
-            "Hasil batch prediction berlaku untuk 150 responden sampel penelitian yang "
-            "dipilih secara proporsional, bukan prediksi untuk seluruh populasi mahasiswa UNSRAT."
+            "Batch prediction tidak dapat dijalankan."
         )
 
+
+    else:
+
+        st.caption(
+            "Hasil batch prediction berlaku untuk 150 responden "
+            "sampel penelitian dan bukan prediksi untuk seluruh "
+            "populasi mahasiswa UNSRAT."
+        )
+
+
+        # ====================================================
+        # DISTRIBUSI
+        # ====================================================
         batch_distribution = (
-            batch_result["Prediksi_Batch"]
+            batch_result[
+                "Prediksi_Batch"
+            ]
             .value_counts()
             .reindex(
-                ["Rendah", "Sedang", "Tinggi"],
+                [
+                    "Rendah",
+                    "Sedang",
+                    "Tinggi"
+                ],
                 fill_value=0
             )
             .reset_index()
         )
+
 
         batch_distribution.columns = [
             "Tingkat Stres",
             "Jumlah"
         ]
 
-        batch_distribution["Persentase (%)"] = (
+
+        batch_distribution[
+            "Persentase (%)"
+        ] = (
             batch_distribution["Jumlah"]
             / len(batch_result)
             * 100
         )
 
-        metric_cols = st.columns(3, gap="medium")
+
+        # ====================================================
+        # METRIC
+        # ====================================================
+        metric_cols = st.columns(
+            3,
+            gap="medium"
+        )
+
+
         for col, kelas in zip(
             metric_cols,
-            ["Rendah", "Sedang", "Tinggi"]
+            [
+                "Rendah",
+                "Sedang",
+                "Tinggi"
+            ]
         ):
+
             row = batch_distribution[
-                batch_distribution["Tingkat Stres"] == kelas
+                batch_distribution[
+                    "Tingkat Stres"
+                ] == kelas
             ].iloc[0]
+
+
             with col:
+
                 st.markdown(
                     f"""
                     <div class="metric-card">
-                        <div class="metric-label">{kelas}</div>
-                        <div class="metric-value">{int(row['Jumlah'])}</div>
-                        <div class="metric-note">{row['Persentase (%)']:.2f}% dari 150 responden</div>
+
+                        <div class="metric-label">
+                            {kelas}
+                        </div>
+
+                        <div class="metric-value">
+                            {int(row['Jumlah'])}
+                        </div>
+
+                        <div class="metric-note">
+                            {row['Persentase (%)']:.2f}%
+                            dari 150 responden
+                        </div>
+
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
-        st.write("")
-        st.markdown("### 📊 Ringkasan Distribusi")
 
-        distribution_col1, distribution_col2 = st.columns([1, 1.35], gap="large")
+        st.write("")
+
+        st.markdown(
+            "### 📊 Ringkasan Distribusi"
+        )
+
+
+        distribution_col1, distribution_col2 = st.columns(
+            [1, 1.35],
+            gap="large"
+        )
+
 
         with distribution_col1:
+
             st.dataframe(
-                batch_distribution.style.format({
-                    "Persentase (%)": "{:.2f}%"
-                }),
+                batch_distribution.style.format(
+                    {
+                        "Persentase (%)": "{:.2f}%"
+                    }
+                ),
                 use_container_width=True,
                 hide_index=True
             )
 
+
         with distribution_col2:
+
             st.bar_chart(
-                batch_distribution.set_index("Tingkat Stres")["Persentase (%)"],
+                batch_distribution.set_index(
+                    "Tingkat Stres"
+                )[
+                    "Persentase (%)"
+                ],
                 height=280
             )
 
+
         st.caption(
-            "Interpretasi distribusi ini terbatas pada 150 responden penelitian yang digunakan "
-            "dalam dataset dan bukan merupakan estimasi prevalensi tingkat stres untuk seluruh "
-            "populasi mahasiswa UNSRAT."
+            "Distribusi ini terbatas pada 150 responden "
+            "sampel penelitian dan bukan estimasi prevalensi "
+            "tingkat stres seluruh mahasiswa UNSRAT."
         )
 
-        with st.expander("📋 Lihat data prediksi seluruh responden"):
+
+        # ====================================================
+        # DATA RESPONDEN
+        # ====================================================
+        with st.expander(
+            "📋 Lihat data prediksi seluruh responden"
+        ):
+
             batch_display_cols = [
-                col for col in [
+                col
+                for col in [
                     "Fakultas",
                     "PASS",
                     "PSQI",
@@ -810,15 +1147,19 @@ with tab_batch:
                 if col in batch_result.columns
             ]
 
+
             st.dataframe(
-                batch_result[batch_display_cols],
+                batch_result[
+                    batch_display_cols
+                ],
                 use_container_width=True,
                 hide_index=True
             )
 
+
             st.caption(
-                f"Menampilkan {len(batch_result)} responden penelitian. "
-                "Prediksi dihitung menggunakan model SVM final."
+                f"Menampilkan {len(batch_result)} "
+                "responden penelitian."
             )
 
 
@@ -826,201 +1167,396 @@ with tab_batch:
 # TAB 3 — FAKULTAS
 # ============================================================
 with tab_faculty:
-    st.header("Distribusi Prediksi Tingkat Stres Berdasarkan Fakultas")
+
+    st.header(
+        "Distribusi Prediksi Tingkat Stres Berdasarkan Fakultas"
+    )
+
     st.markdown(
-        '<p class="section-intro">Distribusi berikut menunjukkan hasil prediksi '
-        'tingkat stres berdasarkan fakultas pada responden penelitian.</p>',
+        '<p class="section-intro">'
+        'Distribusi berikut menunjukkan hasil prediksi '
+        'tingkat stres berdasarkan fakultas pada responden penelitian.'
+        '</p>',
         unsafe_allow_html=True
     )
 
+
     if batch_result is None:
-        st.warning("Data prediksi fakultas belum dapat ditampilkan karena batch prediction tidak tersedia.")
+
+        st.warning(
+            "Data prediksi fakultas belum tersedia."
+        )
+
+
     else:
+
         prediksi_fakultas = pd.crosstab(
             batch_result["Fakultas"],
             batch_result["Prediksi_Batch"]
         )
 
-        for kelas in ["Rendah", "Sedang", "Tinggi"]:
-            if kelas not in prediksi_fakultas.columns:
-                prediksi_fakultas[kelas] = 0
 
-        prediksi_fakultas = prediksi_fakultas[
-            ["Rendah", "Sedang", "Tinggi"]
-        ]
+        for kelas in [
+            "Rendah",
+            "Sedang",
+            "Tinggi"
+        ]:
+
+            if kelas not in prediksi_fakultas.columns:
+
+                prediksi_fakultas[
+                    kelas
+                ] = 0
+
+
+        prediksi_fakultas = (
+            prediksi_fakultas[
+                [
+                    "Rendah",
+                    "Sedang",
+                    "Tinggi"
+                ]
+            ]
+        )
+
 
         prediksi_fakultas["Total"] = (
             prediksi_fakultas[
-                ["Rendah", "Sedang", "Tinggi"]
-            ].sum(axis=1)
+                [
+                    "Rendah",
+                    "Sedang",
+                    "Tinggi"
+                ]
+            ]
+            .sum(axis=1)
         )
+
 
         persentase_fakultas = (
             prediksi_fakultas[
-                ["Rendah", "Sedang", "Tinggi"]
+                [
+                    "Rendah",
+                    "Sedang",
+                    "Tinggi"
+                ]
             ]
-            .div(prediksi_fakultas["Total"], axis=0)
+            .div(
+                prediksi_fakultas["Total"],
+                axis=0
+            )
             * 100
         )
 
-        persentase_fakultas = persentase_fakultas.reset_index()
 
-        persentase_fakultas["Jumlah Responden"] = (
-            prediksi_fakultas["Total"].values
+        persentase_fakultas = (
+            persentase_fakultas
+            .reset_index()
         )
 
-        persentase_fakultas = persentase_fakultas[
-            [
-                "Fakultas",
-                "Jumlah Responden",
-                "Rendah",
-                "Sedang",
-                "Tinggi"
+
+        persentase_fakultas[
+            "Jumlah Responden"
+        ] = (
+            prediksi_fakultas[
+                "Total"
+            ].values
+        )
+
+
+        persentase_fakultas = (
+            persentase_fakultas[
+                [
+                    "Fakultas",
+                    "Jumlah Responden",
+                    "Rendah",
+                    "Sedang",
+                    "Tinggi"
+                ]
             ]
-        ]
+        )
+
 
         st.dataframe(
-            persentase_fakultas.style.format({
-                "Jumlah Responden": "{:.0f}",
-                "Rendah": "{:.2f}%",
-                "Sedang": "{:.2f}%",
-                "Tinggi": "{:.2f}%"
-            }),
+            persentase_fakultas.style.format(
+                {
+                    "Jumlah Responden": "{:.0f}",
+                    "Rendah": "{:.2f}%",
+                    "Sedang": "{:.2f}%",
+                    "Tinggi": "{:.2f}%"
+                }
+            ),
             use_container_width=True,
             hide_index=True
         )
 
+
         st.caption(
-            "Persentase pada setiap fakultas dihitung berdasarkan jumlah responden dalam "
-            "fakultas tersebut, sehingga persentase setiap baris berjumlah 100%."
+            "Persentase pada setiap fakultas dihitung "
+            "berdasarkan jumlah responden pada fakultas tersebut."
         )
+
 
         st.info(
-            "Persentase fakultas tidak menggunakan total populasi mahasiswa UNSRAT sebagai "
-            "penyebut. Perhitungan dilakukan berdasarkan responden penelitian pada masing-masing fakultas."
+            "Persentase fakultas menggunakan responden penelitian "
+            "sebagai dasar perhitungan dan bukan total populasi "
+            "mahasiswa UNSRAT."
         )
 
 
 # ============================================================
-# GLOBAL SHAP FINAL — DATA AKTUAL COLAB
+# GLOBAL SHAP FINAL
+# ============================================================
+# Nilai berasal dari analisis SHAP final pada model penelitian.
+#
+# Mean Absolute SHAP per kelas:
+#
+# Rendah:
+# PASS = 0.555542
+# PSQI = 0.580899
+#
+# Sedang:
+# PASS = 0.269581
+# PSQI = 0.285503
+#
+# Tinggi:
+# PASS = 0.648638
+# PSQI = 0.580207
 # ============================================================
 
-# Nilai berikut berasal dari hasil analisis SHAP final pada notebook Google Colab
-# menggunakan model final penelitian.
-# Mean Absolute SHAP: PSQI = 0.027112; PASS = 0.021735.
+global_shap_per_class = pd.DataFrame(
+    {
+        "Kelas": [
+            "Rendah",
+            "Rendah",
+            "Sedang",
+            "Sedang",
+            "Tinggi",
+            "Tinggi"
+        ],
 
-global_shap = pd.DataFrame({
-    "Fitur": [
-        "PSQI",
-        "PASS"
-    ],
-    "Mean Absolute SHAP": [
-        0.027112,
-        0.021735
-    ]
-})
+        "Fitur": [
+            "PASS",
+            "PSQI",
+            "PASS",
+            "PSQI",
+            "PASS",
+            "PSQI"
+        ],
 
-total_shap = global_shap[
-    "Mean Absolute SHAP"
-].sum()
-
-global_shap["Kontribusi (%)"] = (
-    global_shap["Mean Absolute SHAP"]
-    / total_shap
-    * 100
+        "Mean Absolute SHAP": [
+            0.555542,
+            0.580899,
+            0.269581,
+            0.285503,
+            0.648638,
+            0.580207
+        ]
+    }
 )
-
-global_shap = global_shap.sort_values(
-    "Mean Absolute SHAP",
-    ascending=False
-).reset_index(drop=True)
 
 
 # ============================================================
 # TAB 4 — GLOBAL SHAP
 # ============================================================
 with tab_shap:
-    st.header("Global Feature Importance — SHAP")
+
+    st.header(
+        "Global Feature Importance — SHAP"
+    )
+
     st.markdown(
-        '<p class="section-intro">Berdasarkan hasil analisis SHAP pada model final penelitian, '
-        'kontribusi global fitur dihitung menggunakan rata-rata nilai absolut SHAP.</p>',
+        '<p class="section-intro">'
+        'Global SHAP merangkum besarnya kontribusi absolut '
+        'fitur terhadap output model pada data pengujian.'
+        '</p>',
         unsafe_allow_html=True
     )
 
-    shap_metric_cols = st.columns(2, gap="large")
 
-    for col, feature in zip(shap_metric_cols, ["PSQI", "PASS"]):
-        row = global_shap[
-            global_shap["Fitur"] == feature
-        ].iloc[0]
-        with col:
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <div class="metric-label">{feature}</div>
-                    <div class="metric-value">{row['Kontribusi (%)']:.2f}%</div>
-                    <div class="metric-note">Mean Absolute SHAP = {row['Mean Absolute SHAP']:.6f}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-    st.write("")
-
-    global_col1, global_col2 = st.columns([1, 1.35], gap="large")
-
-    with global_col1:
-        st.markdown("### 📋 Nilai Global SHAP")
-        st.dataframe(
-            global_shap.style.format({
-                "Mean Absolute SHAP": "{:.6f}",
-                "Kontribusi (%)": "{:.2f}%"
-            }),
-            use_container_width=True,
-            hide_index=True
-        )
-
-    with global_col2:
-        st.markdown("### 📊 Kontribusi Relatif Fitur")
-        global_chart = global_shap[
-            ["Fitur", "Kontribusi (%)"]
-        ].set_index("Fitur")
-        st.bar_chart(global_chart["Kontribusi (%)"], height=280)
-
-    st.caption(
-        "Kontribusi (%) dihitung dari proporsi Mean Absolute SHAP masing-masing fitur "
-        "terhadap total Mean Absolute SHAP fitur yang dianalisis."
+    # ========================================================
+    # TABEL GLOBAL SHAP
+    # ========================================================
+    st.markdown(
+        "### 📋 Mean Absolute SHAP Berdasarkan Kelas"
     )
 
-    dominant_global_feature = global_shap.iloc[0]["Fitur"]
-    dominant_global_value = global_shap.iloc[0]["Mean Absolute SHAP"]
-    dominant_global_percentage = global_shap.iloc[0]["Kontribusi (%)"]
+
+    shap_pivot = (
+        global_shap_per_class
+        .pivot(
+            index="Fitur",
+            columns="Kelas",
+            values="Mean Absolute SHAP"
+        )
+        .reset_index()
+    )
+
+
+    shap_pivot = shap_pivot[
+        [
+            "Fitur",
+            "Rendah",
+            "Sedang",
+            "Tinggi"
+        ]
+    ]
+
+
+    st.dataframe(
+        shap_pivot.style.format(
+            {
+                "Rendah": "{:.6f}",
+                "Sedang": "{:.6f}",
+                "Tinggi": "{:.6f}"
+            }
+        ),
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+    st.caption(
+        "Nilai Mean Absolute SHAP yang lebih besar menunjukkan "
+        "kontribusi absolut yang lebih besar dalam menjelaskan "
+        "output kelas model pada data yang dianalisis."
+    )
+
+
+    # ========================================================
+    # AGREGASI GLOBAL
+    # ========================================================
+    aggregated_global = (
+        global_shap_per_class
+        .groupby("Fitur")[
+            "Mean Absolute SHAP"
+        ]
+        .mean()
+        .reset_index()
+    )
+
+
+    total_global_shap = (
+        aggregated_global[
+            "Mean Absolute SHAP"
+        ].sum()
+    )
+
+
+    aggregated_global[
+        "Kontribusi Relatif (%)"
+    ] = (
+        aggregated_global[
+            "Mean Absolute SHAP"
+        ]
+        / total_global_shap
+        * 100
+    )
+
+
+    aggregated_global = (
+        aggregated_global
+        .sort_values(
+            "Mean Absolute SHAP",
+            ascending=False
+        )
+        .reset_index(drop=True)
+    )
+
+
+    # ========================================================
+    # GRAFIK GLOBAL
+    # ========================================================
+    st.markdown(
+        "### 📊 Agregasi Mean Absolute SHAP"
+    )
+
+
+    global_chart = (
+        aggregated_global[
+            [
+                "Fitur",
+                "Kontribusi Relatif (%)"
+            ]
+        ]
+        .set_index("Fitur")
+    )
+
+
+    st.bar_chart(
+        global_chart[
+            "Kontribusi Relatif (%)"
+        ],
+        height=280
+    )
+
+
+    st.dataframe(
+        aggregated_global.style.format(
+            {
+                "Mean Absolute SHAP": "{:.6f}",
+                "Kontribusi Relatif (%)": "{:.2f}%"
+            }
+        ),
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+    # ========================================================
+    # INTERPRETASI GLOBAL
+    # ========================================================
+    dominant_global_feature = (
+        aggregated_global.iloc[0]["Fitur"]
+    )
+
+    dominant_global_value = (
+        aggregated_global.iloc[0][
+            "Mean Absolute SHAP"
+        ]
+    )
+
+    dominant_global_percentage = (
+        aggregated_global.iloc[0][
+            "Kontribusi Relatif (%)"
+        ]
+    )
+
 
     st.info(
         f"""
-        Berdasarkan analisis global SHAP, fitur yang memiliki kontribusi relatif terbesar
-        terhadap output model adalah **{dominant_global_feature}** dengan Mean Absolute SHAP
-        sebesar **{dominant_global_value:.6f}** atau sekitar **{dominant_global_percentage:.2f}%**
-        dari total kontribusi fitur yang dianalisis.
+        Berdasarkan agregasi Mean Absolute SHAP dari tiga
+        output kelas model, fitur **{dominant_global_feature}**
+        memiliki nilai rata-rata kontribusi absolut sebesar
+        **{dominant_global_value:.6f}**, atau sekitar
+        **{dominant_global_percentage:.2f}%** dari total kontribusi
+        absolut kedua fitur.
 
-        Hal ini menunjukkan bahwa **{dominant_global_feature}** memiliki kontribusi relatif
-        lebih besar dalam menjelaskan keluaran model pada data penelitian.
-
-        **Catatan:** hasil SHAP menjelaskan perilaku model dalam menggunakan fitur untuk
-        menghasilkan prediksi dan tidak menunjukkan hubungan sebab-akibat.
+        Interpretasi ini menunjukkan besarnya kontribusi fitur
+        dalam menjelaskan output model, bukan hubungan sebab-akibat.
         """
     )
 
-    with st.expander("📖 Tentang interpretasi Global SHAP"):
+
+    # ========================================================
+    # PENJELASAN GLOBAL SHAP
+    # ========================================================
+    with st.expander(
+        "📖 Tentang interpretasi Global SHAP"
+    ):
+
         st.markdown(
             """
-            Global SHAP merangkum kontribusi fitur pada seluruh data yang dianalisis.
-            Nilai yang digunakan adalah **Mean Absolute SHAP**, sehingga tanda positif/negatif
-            tidak menjadi fokus pada ringkasan global ini; yang dibandingkan adalah besarnya
+            **Mean Absolute SHAP** digunakan untuk melihat besarnya
             kontribusi absolut fitur terhadap output model.
 
-            Hasil ini digunakan untuk menjelaskan perilaku model SVM dan **bukan untuk menyatakan
-            hubungan sebab-akibat** antara variabel prediktor dan tingkat stres.
+            Nilai absolut digunakan karena tanda positif dan negatif
+            menunjukkan arah kontribusi terhadap output kelas,
+            sedangkan analisis global berfokus pada besarnya
+            kontribusi.
+
+            Hasil SHAP menjelaskan perilaku model dalam menggunakan
+            fitur untuk menghasilkan prediksi dan **tidak menunjukkan
+            hubungan sebab-akibat**.
             """
         )
 
@@ -1033,11 +1569,23 @@ st.divider()
 st.markdown(
     """
     <div class="footer-note">
-        <strong>Catatan penelitian:</strong> Model SVM final menggunakan PASS dan PSQI
-        sebagai fitur masukan dengan <em>Tingkat_Stres</em> sebagai variabel target.
-        <em>PSS-10_Score</em> digunakan untuk pembentukan target dan tidak digunakan sebagai
-        fitur masukan. Nilai SHAP menjelaskan kontribusi fitur terhadap output model dan
-        tidak dimaksudkan sebagai bukti hubungan sebab-akibat.
+
+        <strong>Catatan penelitian:</strong>
+
+        Model SVM final menggunakan <strong>PASS</strong> dan
+        <strong>PSQI</strong> sebagai fitur masukan dengan
+        <em>Tingkat_Stres</em> sebagai variabel target.
+
+        <em>PSS-10_Score</em> digunakan untuk pembentukan target
+        dan tidak digunakan sebagai fitur masukan.
+
+        Model menggunakan StandardScaler dan SVM kernel RBF
+        dengan C = 100, gamma = 0.1, dan class weight = balanced.
+
+        Nilai SHAP menjelaskan kontribusi fitur terhadap output
+        model dan tidak dimaksudkan sebagai bukti hubungan
+        sebab-akibat.
+
     </div>
     """,
     unsafe_allow_html=True
