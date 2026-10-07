@@ -81,6 +81,8 @@ with st.sidebar:
     st.divider()
     st.caption("Model memprediksi kategori tingkat stres berdasarkan fitur PASS dan PSQI.")
 
+st.markdown('<div class="section-kicker">Sistem Prediksi Penelitian</div>', unsafe_allow_html=True)
+
 st.title("🧠 Prediksi Tingkat Stres Mahasiswa Semester Akhir")
 st.subheader("Universitas Sam Ratulangi")
 st.write("Aplikasi penelitian menggunakan algoritma **Support Vector Machine (SVM)** dengan pendekatan **Explainable AI (SHAP)**.")
