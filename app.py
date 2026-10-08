@@ -1,4 +1,5 @@
 import streamlit as st
+import plotly.express as px
 import pandas as pd
 import numpy as np
 import joblib
@@ -107,7 +108,7 @@ with st.sidebar:
     st.error("🔴 **Tinggi** — PSS-10 27–40")
 
     st.divider()
-    st.caption("PSS-10 digunakan untuk membentuk target. PASS dan PSQI digunakan sebagai fitur model. SHAP menjelaskan keputusan model dan bukan hubungan sebab-akibat.")
+    st.caption("PSS-10 digunakan untuk membentuk target. PASS dan PSQI digunakan sebagai fitur model. PSS-10_Score tidak digunakan sebagai fitur untuk mencegah target leakage. SHAP menjelaskan keputusan model dan bukan hubungan sebab-akibat.")
 
 # -----------------------------
 # Header
@@ -138,11 +139,12 @@ st.divider()
 # -----------------------------
 # Tabs
 # -----------------------------
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔎 Prediksi Individu",
     "📊 Distribusi 150 Responden",
     "🏫 Analisis Fakultas",
     "💡 Explainable AI (SHAP)",
+    "📈 Performa Model",
 ])
 
 # -----------------------------
@@ -253,56 +255,118 @@ with tab1:
 # -----------------------------
 with tab2:
     st.header("Distribusi Tingkat Stres")
-    st.write("Kategori aktual dibentuk dari skor PSS-10 pada 150 responden penelitian.")
+    st.write("Kategori aktual dibentuk dari skor PSS-10 pada responden penelitian.")
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.success(f"🟢 **RENDAH**\n\n### {rendah}\n{rendah / total * 100:.2f}% responden")
-    with c2:
-        st.warning(f"🟡 **SEDANG**\n\n### {sedang}\n{sedang / total * 100:.2f}% responden")
-    with c3:
-        st.error(f"🔴 **TINGGI**\n\n### {tinggi}\n{tinggi / total * 100:.2f}% responden")
-
-    # Colored distribution chart
-    fig, ax = plt.subplots(figsize=(9, 4.8))
-    values = [rendah, sedang, tinggi]
-    bars = ax.bar(STRESS_CLASSES, values, color=[STRESS_COLORS[x] for x in STRESS_CLASSES], width=0.58)
-    ax.set_ylabel("Jumlah responden")
-    ax.set_title("Distribusi Kategori Tingkat Stres Aktual", fontweight="bold")
-    ax.grid(axis="y", alpha=0.18)
-    ax.set_axisbelow(True)
-    for bar, value in zip(bars, values):
-        ax.text(bar.get_x() + bar.get_width() / 2, value + max(values) * 0.025, str(value), ha="center", fontweight="bold")
-    plt.tight_layout()
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
-
-    actual_table = pd.DataFrame(
-        {
-            "Kategori": [f"{STRESS_ICONS[x]} {x}" for x in STRESS_CLASSES],
-            "Jumlah": values,
-            "Persentase": [f"{x / total * 100:.2f}%" for x in values],
-        }
+    # Hitung langsung dari label aktual; tidak memakai hasil prediksi model.
+    actual_counts = (
+        df["Tingkat_Stres"].astype(str).str.strip()
+        .value_counts()
+        .reindex(STRESS_CLASSES, fill_value=0)
+        .astype(int)
     )
+    actual_total = int(actual_counts.sum())
+    actual_pct = actual_counts / actual_total * 100
+
+    # Validasi angka yang ditampilkan.
+    if actual_total != len(df):
+        st.error("Terjadi ketidaksesuaian perhitungan jumlah responden.")
+        st.stop()
+
+    if actual_total == 150:
+        expected = {"Rendah": 7, "Sedang": 104, "Tinggi": 39}
+        if actual_counts.to_dict() != expected:
+            st.warning(
+                "Distribusi pada file CSV saat ini berbeda dari distribusi penelitian "
+                "yang digunakan pada hasil analisis (7/104/39). Periksa kembali CSV."
+            )
+
+    # Kartu ringkasan.
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("👥 Total responden", f"{actual_total}")
+    with c2:
+        st.metric("🟢 Rendah", f"{actual_counts['Rendah']}", f"{actual_pct['Rendah']:.2f}%")
+    with c3:
+        st.metric("🟡 Sedang", f"{actual_counts['Sedang']}", f"{actual_pct['Sedang']:.2f}%")
+    with c4:
+        st.metric("🔴 Tinggi", f"{actual_counts['Tinggi']}", f"{actual_pct['Tinggi']:.2f}%")
+
+    st.markdown("### Grafik Distribusi Aktual")
+
+    chart_df = pd.DataFrame({
+        "Kategori": STRESS_CLASSES,
+        "Jumlah": [int(actual_counts[x]) for x in STRESS_CLASSES],
+        "Persentase": [float(actual_pct[x]) for x in STRESS_CLASSES],
+    })
+
+    fig = px.bar(
+        chart_df,
+        x="Kategori",
+        y="Jumlah",
+        color="Kategori",
+        text="Jumlah",
+        category_orders={"Kategori": STRESS_CLASSES},
+        color_discrete_map=STRESS_COLORS,
+        custom_data=["Persentase"],
+    )
+    fig.update_traces(
+        texttemplate="%{y} responden<br>(%{customdata[0]:.2f}%)",
+        textposition="outside",
+        cliponaxis=False,
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            "Jumlah: %{y} responden<br>"
+            "Persentase: %{customdata[0]:.2f}%"
+            "<extra></extra>"
+        ),
+    )
+    fig.update_layout(
+        showlegend=False,
+        height=460,
+        xaxis_title="Tingkat Stres",
+        yaxis_title="Jumlah Responden",
+        margin=dict(l=25, r=25, t=25, b=25),
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "Angka pada grafik dihitung langsung dari kolom Tingkat_Stres. "
+        "Persentase = jumlah kategori / total responden × 100%."
+    )
+
+    actual_table = pd.DataFrame({
+        "Kategori": [f"{STRESS_ICONS[x]} {x}" for x in STRESS_CLASSES],
+        "Jumlah": [int(actual_counts[x]) for x in STRESS_CLASSES],
+        "Persentase": [f"{actual_pct[x]:.2f}%" for x in STRESS_CLASSES],
+    })
     st.subheader("Distribusi Aktual")
     st.dataframe(actual_table, use_container_width=True, hide_index=True)
 
-    pred_counts = df["Prediksi_Batch"].value_counts()
-    pred_values = [int(pred_counts.get(x, 0)) for x in STRESS_CLASSES]
-    pred_table = pd.DataFrame(
-        {
-            "Kategori Prediksi": [f"{STRESS_ICONS[x]} {x}" for x in STRESS_CLASSES],
-            "Jumlah": pred_values,
-            "Persentase": [f"{x / total * 100:.2f}%" for x in pred_values],
-        }
+    pred_counts = (
+        df["Prediksi_Batch"].astype(str).str.strip()
+        .value_counts()
+        .reindex(STRESS_CLASSES, fill_value=0)
+        .astype(int)
     )
+    pred_pct = pred_counts / actual_total * 100
+    pred_table = pd.DataFrame({
+        "Kategori Prediksi": [f"{STRESS_ICONS[x]} {x}" for x in STRESS_CLASSES],
+        "Jumlah": [int(pred_counts[x]) for x in STRESS_CLASSES],
+        "Persentase": [f"{pred_pct[x]:.2f}%" for x in STRESS_CLASSES],
+    })
     st.subheader("Distribusi Hasil Prediksi Model")
     st.write("Distribusi prediksi model dapat berbeda dari distribusi kategori aktual.")
     st.dataframe(pred_table, use_container_width=True, hide_index=True)
 
     st.subheader("Data Responden")
-    display_columns = [c for c in ["ID", "Jenis_Kelamin", "Usia", "Fakultas", "Angkatan", "PASS", "PSQI", "PSS-10_Score", "Tingkat_Stres", "Prediksi_Batch"] if c in df.columns]
+    display_columns = [
+        c for c in [
+            "ID", "Jenis_Kelamin", "Usia", "Fakultas", "Angkatan",
+            "PASS", "PSQI", "PSS-10_Score", "Tingkat_Stres", "Prediksi_Batch"
+        ] if c in df.columns
+    ]
     st.dataframe(df[display_columns], use_container_width=True, hide_index=True, height=420)
+
     st.download_button(
         "⬇️ Unduh hasil prediksi 150 responden (CSV)",
         data=df.to_csv(index=False).encode("utf-8"),
@@ -310,8 +374,12 @@ with tab2:
         mime="text/csv",
         use_container_width=True,
     )
-    if total != 150:
-        st.warning(f"File saat ini berisi {total} responden, bukan 150. Periksa kembali hasil_prediksi_final.csv.")
+
+    if actual_total != 150:
+        st.warning(
+            f"File saat ini berisi {actual_total} responden, bukan 150. "
+            "Periksa kembali hasil_prediksi_final.csv."
+        )
 
 # -----------------------------
 # Tab 3
@@ -438,3 +506,66 @@ with tab4:
 
 st.divider()
 st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT  •  Support Vector Machine (SVM) + Explainable AI (SHAP)")
+
+
+# -----------------------------
+# Tab 5
+# -----------------------------
+with tab5:
+    st.header("Performa Model SVM")
+    st.write(
+        "Metrik berikut berasal dari evaluasi model final pada data pengujian "
+        "(30 responden) menggunakan pembagian data 80:20 secara stratified."
+    )
+
+    metrics = {
+        "Accuracy": 0.5000,
+        "Balanced Accuracy": 0.6587,
+        "Macro Precision": 0.4339,
+        "Macro Recall": 0.6587,
+        "Macro F1": 0.4307,
+    }
+
+    a, b, c, d, e = st.columns(5)
+    for col, (label, value) in zip(
+        [a, b, c, d, e], metrics.items()
+    ):
+        with col:
+            st.metric(label, f"{value * 100:.2f}%")
+
+    st.subheader("Confusion Matrix")
+    cm = np.array([
+        [1, 0, 0],
+        [6, 10, 5],
+        [0, 4, 4],
+    ])
+    cm_df = pd.DataFrame(
+        cm,
+        index=[f"Aktual {x}" for x in STRESS_CLASSES],
+        columns=[f"Prediksi {x}" for x in STRESS_CLASSES],
+    )
+    st.dataframe(cm_df, use_container_width=True)
+
+    st.caption(
+        "Baris menunjukkan kelas aktual dan kolom menunjukkan kelas prediksi. "
+        "Diagonal menunjukkan jumlah klasifikasi yang sesuai."
+    )
+
+    st.subheader("Konfigurasi Model Final")
+    config_df = pd.DataFrame({
+        "Komponen": [
+            "Algoritma", "Kernel", "C", "Gamma",
+            "Class Weight", "Standardisasi", "Fitur"
+        ],
+        "Nilai": [
+            "Support Vector Machine", "RBF", "100", "0.1",
+            "balanced", "StandardScaler", "PASS + PSQI"
+        ],
+    })
+    st.dataframe(config_df, use_container_width=True, hide_index=True)
+
+    st.info(
+        "Accuracy dan balanced accuracy menggambarkan aspek yang berbeda. "
+        "Balanced accuracy memperhitungkan recall masing-masing kelas sehingga "
+        "lebih informatif ketika jumlah anggota kelas tidak seimbang."
+    )
