@@ -1,0 +1,18 @@
+{
+    "parameter_terbaik": {
+        "svm__C": 100,
+        "svm__class_weight": "balanced",
+        "svm__gamma": 0.1
+    },
+    "macro_f1_cross_validation": 0.52793186735292,
+    "metrik_testing": {
+        "Accuracy": 0.5,
+        "Balanced Accuracy": 0.6587301587301587,
+        "Macro Precision": 0.4338624338624339,
+        "Macro Recall": 0.6587301587301587,
+        "Macro F1": 0.430672268907563
+    },
+    "jumlah_data": 150,
+    "jumlah_training": 120,
+    "jumlah_testing": 30
+}
