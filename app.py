@@ -33,7 +33,7 @@ try:
 except Exception as e:
     st.error("Model tidak dapat dimuat.")
     st.write("Pastikan file berikut tersedia di repository:")
-    st.code("svm_model_final.pkl\nfeature_names.pkl\nshap_background.pkl\nhasil_prediksi_final.csv")
+    st.code("svm_model_final.pkl\nfeature_names.pkl\nshap_background.pkl\nhasil_prediksi_testing.csv")
     st.exception(e)
     st.stop()
 
