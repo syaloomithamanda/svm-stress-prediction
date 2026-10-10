@@ -207,58 +207,58 @@ with tab1:
     
     pass_outside = not (40 <= pass_value <= 68)
     psqi_outside = not (2 <= psqi_value <= 18)
-    
+        
     if pass_outside or psqi_outside:
         messages = []
-    
+        
         if pass_outside:
             messages.append(
                 f"PASS {pass_value:.0f} berada di luar "
-                "rentang pengamatan penelitian (40–68)."
+                "rentang pengamatan (40–68)."
             )
-    
+        
         if psqi_outside:
             messages.append(
                 f"PSQI {psqi_value:.0f} berada di luar "
-                "rentang pengamatan penelitian (2–18)."
+                "rentang pengamatan (2–18)."
             )
-    
+        
         st.warning(
             "Input berada di luar rentang data penelitian. "
             "Prediksi tetap dapat dihitung, tetapi perlu "
             "ditafsirkan dengan hati-hati. "
             + " ".join(messages)
         )
-
-        if st.button(
-            "🔍 Prediksi Tingkat Stres",
-            type="primary",
-            use_container_width=True,
-        ):
-            input_data = pd.DataFrame(
-                [[pass_value, psqi_value]],
-                columns=EXPECTED_FEATURES,
-            )
         
-            prediction = model.predict(input_data)[0]
+    if st.button(
+        "🔍 Prediksi Tingkat Stres",
+        type="primary",
+        use_container_width=True,
+    ):
+        input_data = pd.DataFrame(
+            [[pass_value, psqi_value]],
+            columns=EXPECTED_FEATURES,
+        )
         
-            st.divider()
-            st.subheader("Hasil Prediksi")
+        prediction = model.predict(input_data)[0]
         
-            if prediction == "Rendah":
-                st.success(f"🟢 **{prediction.upper()}**")
-            elif prediction == "Sedang":
-                st.warning(f"🟡 **{prediction.upper()}**")
-            else:
-                st.error(f"🔴 **{prediction.upper()}**")
+        st.divider()
+        st.subheader("Hasil Prediksi")
         
-            st.write(f"**PASS:** {pass_value:.0f}")
-            st.write(f"**PSQI:** {psqi_value:.0f}")
+        if prediction == "Rendah":
+             st.success(f"🟢 **{prediction.upper()}**")
+        elif prediction == "Sedang":
+            st.warning(f"🟡 **{prediction.upper()}**")
+        else:
+            st.error(f"🔴 **{prediction.upper()}**")
         
-            st.info(
-                "Hasil ini merupakan prediksi kategori oleh model "
-                "SVM, bukan hasil pengukuran PSS-10 secara langsung."
-            )
+        st.write(f"**PASS:** {pass_value:.0f}")
+        st.write(f"**PSQI:** {psqi_value:.0f}")
+        
+        st.info(
+            "Hasil ini merupakan prediksi model SVM, "
+            "bukan hasil pengukuran PSS-10 secara langsung."
+        )
 
 # -----------------------------
 # Tab 2
