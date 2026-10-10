@@ -60,6 +60,57 @@ if list(class_names) != list(model.classes_):
     st.stop()
 
 # -----------------------------
+# Memuat dataset seluruh responden
+# -----------------------------
+try:
+    df = pd.read_csv("dataset_responden_app.csv")
+
+    required_columns = [
+        "PASS",
+        "PSQI",
+        "Fakultas",
+        "Tingkat_Stres",
+    ]
+
+    missing_columns = [
+        col for col in required_columns
+        if col not in df.columns
+    ]
+
+    if missing_columns:
+        st.error(
+            f"Kolom wajib tidak ditemukan: {missing_columns}"
+        )
+        st.stop()
+
+    # Pastikan skor fitur dapat dibaca sebagai angka.
+    df["PASS"] = pd.to_numeric(
+        df["PASS"], errors="raise"
+    )
+    df["PSQI"] = pd.to_numeric(
+        df["PSQI"], errors="raise"
+    )
+
+    # Buat prediksi batch memakai model final,
+    # jika kolom prediksi belum tersedia.
+    if "Prediksi_Batch" not in df.columns:
+        df["Prediksi_Batch"] = model.predict(
+            df[EXPECTED_FEATURES]
+        )
+
+except FileNotFoundError:
+    st.error(
+        "File dataset_responden_app.csv tidak ditemukan. "
+        "Unggah file tersebut ke root repository GitHub."
+    )
+    st.stop()
+
+except Exception as e:
+    st.error("Terjadi kesalahan saat memuat dataset.")
+    st.exception(e)
+    st.stop()
+
+# -----------------------------
 # Sidebar
 # -----------------------------
 with st.sidebar:
@@ -178,6 +229,36 @@ with tab1:
             "ditafsirkan dengan hati-hati. "
             + " ".join(messages)
         )
+
+        if st.button(
+            "🔍 Prediksi Tingkat Stres",
+            type="primary",
+            use_container_width=True,
+        ):
+            input_data = pd.DataFrame(
+                [[pass_value, psqi_value]],
+                columns=EXPECTED_FEATURES,
+            )
+        
+            prediction = model.predict(input_data)[0]
+        
+            st.divider()
+            st.subheader("Hasil Prediksi")
+        
+            if prediction == "Rendah":
+                st.success(f"🟢 **{prediction.upper()}**")
+            elif prediction == "Sedang":
+                st.warning(f"🟡 **{prediction.upper()}**")
+            else:
+                st.error(f"🔴 **{prediction.upper()}**")
+        
+            st.write(f"**PASS:** {pass_value:.0f}")
+            st.write(f"**PSQI:** {psqi_value:.0f}")
+        
+            st.info(
+                "Hasil ini merupakan prediksi kategori oleh model "
+                "SVM, bukan hasil pengukuran PSS-10 secara langsung."
+            )
 
 # -----------------------------
 # Tab 2
