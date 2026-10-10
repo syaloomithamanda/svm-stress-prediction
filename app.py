@@ -25,65 +25,39 @@ STRESS_ICONS = {"Rendah": "🟢", "Sedang": "🟡", "Tinggi": "🔴"}
 def load_model():
     model = joblib.load("svm_model_final.joblib")
     feature_names = joblib.load("feature_names.joblib")
-    background = pd.read_csv("shap_background.csv")[EXPECTED_FEATURES]
-    return model, feature_names, background
+    class_names = joblib.load("class_names.joblib")
+
+    background = pd.read_csv("shap_background.csv")
+    background = background[EXPECTED_FEATURES]
+
+    return model, feature_names, class_names, background
+
 
 try:
-    model, feature_names, background = load_model()
+    model, feature_names, class_names, background = load_model()
 except Exception as e:
-    st.error("Model tidak dapat dimuat.")
+    st.error("Model atau artefak SHAP tidak dapat dimuat.")
     st.write("Pastikan file berikut tersedia di repository:")
-    st.code("svm_model_final.joblib\nfeature_names.joblib\nshap_background.csv\ndataset_responden_app.csv")
+    st.code(
+        "svm_model_final.joblib\n"
+        "feature_names.joblib\n"
+        "class_names.joblib\n"
+        "shap_background.csv"
+    )
     st.exception(e)
     st.stop()
+
 
 if list(feature_names) != EXPECTED_FEATURES:
-    st.error(f"Fitur model tidak sesuai. Fitur yang ditemukan: {feature_names}")
+    st.error(f"Fitur model tidak sesuai: {feature_names}")
     st.stop()
 
-
-def model_decision_for_shap(data):
-    return model.decision_function(pd.DataFrame(data, columns=feature_names))
-
-
-@st.cache_resource
-def create_shap_explainer():
-    return shap.KernelExplainer(model_decision_for_shap, background)
-
-
-def normalize_shap_values(shap_result, n_rows, n_features, n_classes):
-    arr = np.asarray(shap_result)
-    if isinstance(shap_result, list):
-        if arr.ndim == 3 and arr.shape == (n_classes, n_rows, n_features):
-            return np.transpose(arr, (1, 2, 0))
-        if arr.ndim == 3 and arr.shape == (n_rows, n_features, n_classes):
-            return arr
-    if arr.ndim == 2 and arr.shape == (n_rows, n_features):
-        return arr[:, :, np.newaxis]
-    if arr.ndim == 3:
-        if arr.shape == (n_rows, n_features, n_classes):
-            return arr
-        if arr.shape == (n_rows, n_classes, n_features):
-            return np.transpose(arr, (0, 2, 1))
-        if arr.shape == (n_classes, n_rows, n_features):
-            return np.transpose(arr, (1, 2, 0))
-    raise ValueError(f"Bentuk keluaran SHAP tidak dikenali: {arr.shape}")
-
-
-try:
-    df = pd.read_csv("dataset_responden_app.csv")
-except Exception as e:
-    st.error("File dataset_responden_app.csv tidak ditemukan.")
-    st.exception(e)
+if list(class_names) != list(model.classes_):
+    st.error(
+        "Urutan kelas pada class_names.joblib tidak sesuai "
+        "dengan kelas model."
+    )
     st.stop()
-
-missing_columns = [c for c in ["PASS", "PSQI", "Tingkat_Stres"] if c not in df.columns]
-if missing_columns:
-    st.error(f"Kolom berikut tidak ditemukan: {missing_columns}")
-    st.stop()
-
-if "Prediksi_Batch" not in df.columns:
-    df["Prediksi_Batch"] = model.predict(df[EXPECTED_FEATURES])
 
 # -----------------------------
 # Sidebar
@@ -160,9 +134,9 @@ with tab1:
             "📘 Nilai PASS",
             min_value=0.0,
             max_value=90.0,
-            value=50.0,
+            value=52.0,
             step=1.0,
-            help="Masukkan skor total PASS.",
+            help="Masukkan skor total PASS."
         )
     with c2:
         psqi_value = st.number_input(
@@ -171,84 +145,39 @@ with tab1:
             max_value=21.0,
             value=9.0,
             step=1.0,
-            help="Masukkan skor global PSQI (0–21).",
+            help="Masukkan skor global PSQI (0–21)."
         )
 
-    st.caption("Rentang PSQI: 0–21. Skor PASS pada aplikasi dibatasi 0–90 untuk memberi ruang input.")
-
-    if st.button("🔍  Prediksi Tingkat Stres", type="primary", use_container_width=True):
-        input_data = pd.DataFrame([[pass_value, psqi_value]], columns=EXPECTED_FEATURES)
-        prediction = model.predict(input_data)[0]
-
-        st.divider()
-        st.subheader("Hasil Prediksi")
-        result_col, detail_col = st.columns([1, 2])
-
-        with result_col:
-            if prediction == "Rendah":
-                st.success(f"{STRESS_ICONS[prediction]} **{prediction.upper()}**")
-            elif prediction == "Sedang":
-                st.warning(f"{STRESS_ICONS[prediction]} **{prediction.upper()}**")
-            else:
-                st.error(f"{STRESS_ICONS[prediction]} **{prediction.upper()}**")
-            st.caption("Kategori yang dipilih oleh model SVM")
-
-        with detail_col:
-            st.write(f"**PASS:** {pass_value:.0f}")
-            st.write(f"**PSQI:** {psqi_value:.0f}")
-            st.info("Hasil ini adalah prediksi kategori model, bukan nilai PSS-10 secara langsung.")
-
-        st.subheader("💡 Penjelasan SHAP")
-        try:
-            explainer = create_shap_explainer()
-            with st.spinner("Menghitung kontribusi SHAP..."):
-                shap_result = explainer.shap_values(input_data, nsamples=100)
-
-            classes = list(model.classes_)
-            class_idx = classes.index(prediction)
-            shap_array = normalize_shap_values(
-                shap_result, 1, len(EXPECTED_FEATURES), len(classes)
+    st.caption(
+        "Rentang skor teoretis: PASS 0–90 dan PSQI 0–21. "
+        "Rentang teoretis berbeda dari rentang yang diamati "
+        "pada data penelitian."
+    )
+    
+    pass_outside = not (40 <= pass_value <= 68)
+    psqi_outside = not (2 <= psqi_value <= 18)
+    
+    if pass_outside or psqi_outside:
+        messages = []
+    
+        if pass_outside:
+            messages.append(
+                f"PASS {pass_value:.0f} berada di luar "
+                "rentang pengamatan penelitian (40–68)."
             )
-            local_values = shap_array[0, :, class_idx]
-
-            local_table = pd.DataFrame(
-                {
-                    "Fitur": EXPECTED_FEATURES,
-                    "Nilai Input": [pass_value, psqi_value],
-                    "SHAP": local_values,
-                }
+    
+        if psqi_outside:
+            messages.append(
+                f"PSQI {psqi_value:.0f} berada di luar "
+                "rentang pengamatan penelitian (2–18)."
             )
-            st.dataframe(
-                local_table.style.format({"Nilai Input": "{:.0f}", "SHAP": "{:+.6f}"}),
-                use_container_width=True,
-                hide_index=True,
-            )
-
-            fig, ax = plt.subplots(figsize=(8, 3.8))
-            bars = ax.barh(
-                local_table["Fitur"],
-                local_table["SHAP"],
-                color=["#4F46E5" if v >= 0 else "#94A3B8" for v in local_values],
-            )
-            ax.axvline(0, linewidth=1.2, color="#334155")
-            ax.set_xlabel("Nilai SHAP")
-            ax.set_title(f"Kontribusi fitur terhadap kelas {prediction}", fontweight="bold")
-            ax.grid(axis="x", alpha=0.18)
-            for bar, val in zip(bars, local_values):
-                ax.text(
-                    val + (0.02 if val >= 0 else -0.02),
-                    bar.get_y() + bar.get_height() / 2,
-                    f"{val:+.3f}",
-                    va="center",
-                    ha="left" if val >= 0 else "right",
-                )
-            plt.tight_layout()
-            st.pyplot(fig, use_container_width=True)
-            plt.close(fig)
-            st.caption("SHAP positif menunjukkan kontribusi menuju kelas yang dijelaskan; SHAP negatif menunjukkan kontribusi berlawanan. Ini bukan bukti hubungan sebab-akibat.")
-        except Exception as e:
-            st.warning("Penjelasan SHAP tidak dapat ditampilkan untuk input ini.")
-            st.exception(e)
+    
+        st.warning(
+            "Input berada di luar rentang data penelitian. "
+            "Prediksi tetap dapat dihitung, tetapi perlu "
+            "ditafsirkan dengan hati-hati. "
+            + " ".join(messages)
+        )
 
 # -----------------------------
 # Tab 2
@@ -500,9 +429,6 @@ with tab4:
         }
     )
     st.dataframe(examples, use_container_width=True, hide_index=True)
-    st.write("**ID 5 — Sedang → Sedang:** PASS = 59 dan PSQI = 9. Untuk output kelas Sedang, kontribusi SHAP PASS +0.406396 dan PSQI +0.153212.")
-    st.write("**ID 33 — Tinggi → Tinggi:** PASS = 46 dan PSQI = 11. Untuk output kelas Tinggi, kontribusi SHAP PASS +0.465401 dan PSQI +0.311273.")
-    st.write("**ID 124 — Sedang → Rendah:** PASS = 55 dan PSQI = 8. Untuk output kelas Rendah, kontribusi SHAP PASS +1.275040 dan PSQI +0.989094. Model menghasilkan prediksi Rendah sedangkan kategori aktualnya Sedang.")
 
 st.divider()
 st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT  •  Support Vector Machine (SVM) + Explainable AI (SHAP)")
