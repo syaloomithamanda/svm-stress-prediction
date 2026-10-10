@@ -23,9 +23,9 @@ STRESS_ICONS = {"Rendah": "🟢", "Sedang": "🟡", "Tinggi": "🔴"}
 # -----------------------------
 @st.cache_resource
 def load_model():
-    model = joblib.load("svm_model_final.pkl")
-    feature_names = joblib.load("feature_names.pkl")
-    background = joblib.load("shap_background.pkl")
+    model = joblib.load("svm_model_final.joblib")
+    feature_names = joblib.load("feature_names.joblib")
+    background = pd.read_csv("shap_background.csv")[EXPECTED_FEATURES]
     return model, feature_names, background
 
 try:
@@ -33,7 +33,7 @@ try:
 except Exception as e:
     st.error("Model tidak dapat dimuat.")
     st.write("Pastikan file berikut tersedia di repository:")
-    st.code("svm_model_final.pkl\nfeature_names.pkl\nshap_background.pkl\nhasil_prediksi_testing.csv")
+    st.code("svm_model_final.joblib\nfeature_names.joblib\nshap_background.csv\ndataset_responden_app.csv")
     st.exception(e)
     st.stop()
 
@@ -71,9 +71,9 @@ def normalize_shap_values(shap_result, n_rows, n_features, n_classes):
 
 
 try:
-    df = pd.read_csv("hasil_prediksi_final.csv")
+    df = pd.read_csv("dataset_responden_app.csv")
 except Exception as e:
-    st.error("File hasil_prediksi_final.csv tidak ditemukan.")
+    st.error("File dataset_responden_app.csv tidak ditemukan.")
     st.exception(e)
     st.stop()
 
@@ -152,7 +152,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # -----------------------------
 with tab1:
     st.header("Prediksi Tingkat Stres Individu")
-    st.write("Masukkan skor **PASS** dan **PSQI** untuk melihat kategori yang diprediksi oleh model SVM.")
+    st.write("Masukkan skor **PASS** dan **PSQI** untuk melihat kategori yang diprediksi oleh model SVM terbaru.")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -370,7 +370,7 @@ with tab2:
     st.download_button(
         "⬇️ Unduh hasil prediksi 150 responden (CSV)",
         data=df.to_csv(index=False).encode("utf-8"),
-        file_name="hasil_prediksi_final.csv",
+        file_name="dataset_responden_app.csv",
         mime="text/csv",
         use_container_width=True,
     )
