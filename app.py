@@ -199,44 +199,57 @@ with tab1:
     with c1:
         pass_value = st.number_input(
             "📘 Nilai PASS",
-            min_value=0.0,
+            min_value=18.0,
             max_value=90.0,
-            value=52.0,
+            value=None,
             step=1.0,
-            help="Masukkan skor total PASS."
+            format="%.0f",
+            help="PASS terdiri dari 18 item dengan skor 1–5; skor total teoretis 18–90. Input dibiarkan kosong sampai Anda memasukkan skor."
         )
     with c2:
         psqi_value = st.number_input(
             "🌙 Nilai PSQI",
             min_value=0.0,
             max_value=21.0,
-            value=9.0,
+            value=None,
             step=1.0,
-            help="Masukkan skor global PSQI (0–21)."
+            format="%.0f",
+            help="Masukkan skor global PSQI (0–21). Input dibiarkan kosong sampai Anda memasukkan skor."
         )
 
     st.caption(
-        "Rentang skor teoretis: PASS 0–90 dan PSQI 0–21. "
-        "Rentang teoretis berbeda dari rentang yang diamati "
-        "pada data penelitian."
+        "Rentang skor teoretis: PASS 18–90 (18 item, masing-masing 1–5) "
+        "dan PSQI 0–21. Rentang teoretis berbeda dari rentang yang "
+        "diamati pada data penelitian."
     )
     
-    pass_outside = not (40 <= pass_value <= 68)
-    psqi_outside = not (2 <= psqi_value <= 18)
+    pass_observed_min = float(df["PASS"].min())
+    pass_observed_max = float(df["PASS"].max())
+    psqi_observed_min = float(df["PSQI"].min())
+    psqi_observed_max = float(df["PSQI"].max())
+
+    pass_outside = (
+        pass_value is not None
+        and not (pass_observed_min <= pass_value <= pass_observed_max)
+    )
+    psqi_outside = (
+        psqi_value is not None
+        and not (psqi_observed_min <= psqi_value <= psqi_observed_max)
+    )
         
     if pass_outside or psqi_outside:
         messages = []
         
         if pass_outside:
             messages.append(
-                f"PASS {pass_value:.0f} berada di luar "
-                "rentang pengamatan (40–68)."
+                f"PASS {pass_value:.0f} berada di luar rentang pengamatan "
+                f"data ( {pass_observed_min:.0f}–{pass_observed_max:.0f} )."
             )
         
         if psqi_outside:
             messages.append(
-                f"PSQI {psqi_value:.0f} berada di luar "
-                "rentang pengamatan (2–18)."
+                f"PSQI {psqi_value:.0f} berada di luar rentang pengamatan "
+                f"data ( {psqi_observed_min:.0f}–{psqi_observed_max:.0f} )."
             )
         
         st.warning(
@@ -245,133 +258,142 @@ with tab1:
             "ditafsirkan dengan hati-hati. "
             + " ".join(messages)
         )
+        st.caption(
+            "SVM tidak memakai aturan sederhana bahwa skor lebih tinggi "
+            "pasti menghasilkan kategori stres lebih tinggi. Model mempelajari "
+            "batas keputusan dari data latih; untuk input di luar rentang "
+            "pengamatan, prediksi perlu ditafsirkan lebih hati-hati."
+        )
         
     if st.button(
         "🔍 Prediksi Tingkat Stres",
         type="primary",
         use_container_width=True,
     ):
-        input_data = pd.DataFrame(
-            [[pass_value, psqi_value]],
-            columns=EXPECTED_FEATURES,
-        )
-        
-        prediction = model.predict(input_data)[0]
-        
-        st.divider()
-        st.subheader("Hasil Prediksi")
-        
-        if prediction == "Rendah":
-            st.success(f"🟢 **{prediction.upper()}**")
-        elif prediction == "Sedang":
-            st.warning(f"🟡 **{prediction.upper()}**")
+        if pass_value is None or psqi_value is None:
+            st.warning("Masukkan skor PASS dan PSQI terlebih dahulu.")
         else:
-            st.error(f"🔴 **{prediction.upper()}**")
+            input_data = pd.DataFrame(
+                [[pass_value, psqi_value]],
+                columns=EXPECTED_FEATURES,
+            )
         
-        st.write(f"**PASS:** {pass_value:.0f}")
-        st.write(f"**PSQI:** {psqi_value:.0f}")
+            prediction = model.predict(input_data)[0]
         
-        st.info(
-            "Hasil ini merupakan prediksi model SVM, "
-            "bukan hasil pengukuran PSS-10 secara langsung."
-        )
-
-        st.subheader("Penjelasan SHAP")
-        st.caption(
-            "Grafik ini menjelaskan kontribusi PASS dan PSQI terhadap "
-            "output keputusan kelas yang diprediksi. Nilai SHAP bukan "
-            "probabilitas dan bukan bukti sebab-akibat."
-        )
-
-        try:
-            explainer = create_shap_explainer()
-
-            with st.spinner("Menghitung SHAP untuk input ini..."):
-                raw_shap = explainer.shap_values(
-                    input_data,
-                    nsamples=100
-                )
-
-            class_index = list(model.classes_).index(prediction)
-
-            # SHAP versions may return a list of per-class arrays
-            # or a NumPy array with different axis arrangements.
-            if isinstance(raw_shap, list):
-                if len(raw_shap) == len(model.classes_):
-                    contributions = np.asarray(raw_shap[class_index])[0].reshape(-1)
-                elif len(raw_shap) == 1:
-                    contributions = np.asarray(raw_shap[0])[0].reshape(-1)
-                else:
-                    raise ValueError(
-                        f"Jumlah array SHAP ({len(raw_shap)}) tidak sesuai "
-                        f"dengan jumlah kelas ({len(model.classes_)})."
-                    )
+            st.divider()
+            st.subheader("Hasil Prediksi")
+        
+            if prediction == "Rendah":
+                st.success(f"🟢 **{prediction.upper()}**")
+            elif prediction == "Sedang":
+                st.warning(f"🟡 **{prediction.upper()}**")
             else:
-                values = np.asarray(raw_shap)
+                st.error(f"🔴 **{prediction.upper()}**")
+        
+            st.write(f"**PASS:** {pass_value:.0f}")
+            st.write(f"**PSQI:** {psqi_value:.0f}")
+        
+            st.info(
+                "Hasil ini merupakan prediksi model SVM, "
+                "bukan hasil pengukuran PSS-10 secara langsung."
+            )
 
-                if values.ndim == 3:
-                    if values.shape == (1, len(EXPECTED_FEATURES), len(model.classes_)):
-                        contributions = values[0, :, class_index]
-                    elif values.shape == (len(model.classes_), 1, len(EXPECTED_FEATURES)):
-                        contributions = values[class_index, 0, :]
+            st.subheader("Penjelasan SHAP")
+            st.caption(
+                "Grafik ini menjelaskan kontribusi PASS dan PSQI terhadap "
+                "output keputusan kelas yang diprediksi. Nilai SHAP bukan "
+                "probabilitas dan bukan bukti sebab-akibat."
+            )
+
+            try:
+                explainer = create_shap_explainer()
+
+                with st.spinner("Menghitung SHAP untuk input ini..."):
+                    raw_shap = explainer.shap_values(
+                        input_data,
+                        nsamples=100
+                    )
+
+                class_index = list(model.classes_).index(prediction)
+
+                # SHAP versions may return a list of per-class arrays
+                # or a NumPy array with different axis arrangements.
+                if isinstance(raw_shap, list):
+                    if len(raw_shap) == len(model.classes_):
+                        contributions = np.asarray(raw_shap[class_index])[0].reshape(-1)
+                    elif len(raw_shap) == 1:
+                        contributions = np.asarray(raw_shap[0])[0].reshape(-1)
                     else:
                         raise ValueError(
-                            f"Bentuk array SHAP 3D tidak dikenali: {values.shape}"
+                            f"Jumlah array SHAP ({len(raw_shap)}) tidak sesuai "
+                            f"dengan jumlah kelas ({len(model.classes_)})."
                         )
-                elif values.ndim == 2 and values.shape == (1, len(EXPECTED_FEATURES)):
-                    contributions = values[0, :]
                 else:
+                    values = np.asarray(raw_shap)
+
+                    if values.ndim == 3:
+                        if values.shape == (1, len(EXPECTED_FEATURES), len(model.classes_)):
+                            contributions = values[0, :, class_index]
+                        elif values.shape == (len(model.classes_), 1, len(EXPECTED_FEATURES)):
+                            contributions = values[class_index, 0, :]
+                        else:
+                            raise ValueError(
+                                f"Bentuk array SHAP 3D tidak dikenali: {values.shape}"
+                            )
+                    elif values.ndim == 2 and values.shape == (1, len(EXPECTED_FEATURES)):
+                        contributions = values[0, :]
+                    else:
+                        raise ValueError(
+                            f"Bentuk hasil SHAP tidak dikenali: {values.shape}"
+                        )
+
+                contributions = np.asarray(contributions, dtype=float).reshape(-1)
+                if len(contributions) != len(EXPECTED_FEATURES):
                     raise ValueError(
-                        f"Bentuk hasil SHAP tidak dikenali: {values.shape}"
+                        "Jumlah nilai SHAP tidak sama dengan jumlah fitur."
                     )
 
-            contributions = np.asarray(contributions, dtype=float).reshape(-1)
-            if len(contributions) != len(EXPECTED_FEATURES):
-                raise ValueError(
-                    "Jumlah nilai SHAP tidak sama dengan jumlah fitur."
+                shap_df = pd.DataFrame({
+                    "Fitur": EXPECTED_FEATURES,
+                    "Nilai Input": [
+                        float(input_data.iloc[0][feature])
+                        for feature in EXPECTED_FEATURES
+                    ],
+                    "Nilai SHAP": contributions,
+                }).sort_values("Nilai SHAP")
+
+                fig, ax = plt.subplots(figsize=(7, 3.5))
+                colors = [
+                    "#EF4444" if value < 0 else "#22C55E"
+                    for value in shap_df["Nilai SHAP"]
+                ]
+                ax.barh(
+                    shap_df["Fitur"],
+                    shap_df["Nilai SHAP"],
+                    color=colors
+                )
+                ax.axvline(0, color="black", linewidth=0.8)
+                ax.set_xlabel("Kontribusi SHAP terhadap output keputusan")
+                ax.set_title(f"Penjelasan untuk kelas {prediction}")
+                plt.tight_layout()
+                st.pyplot(fig, use_container_width=True)
+                plt.close(fig)
+
+                st.dataframe(
+                    shap_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
+                st.caption(
+                    "Nilai SHAP positif mendorong output keputusan kelas yang "
+                    "dijelaskan ke arah lebih tinggi; nilai negatif mendorongnya "
+                    "ke arah lebih rendah. Ini menjelaskan perilaku model, bukan "
+                    "penyebab stres atau probabilitas kelas."
                 )
 
-            shap_df = pd.DataFrame({
-                "Fitur": EXPECTED_FEATURES,
-                "Nilai Input": [
-                    float(input_data.iloc[0][feature])
-                    for feature in EXPECTED_FEATURES
-                ],
-                "Nilai SHAP": contributions,
-            }).sort_values("Nilai SHAP")
-
-            fig, ax = plt.subplots(figsize=(7, 3.5))
-            colors = [
-                "#EF4444" if value < 0 else "#22C55E"
-                for value in shap_df["Nilai SHAP"]
-            ]
-            ax.barh(
-                shap_df["Fitur"],
-                shap_df["Nilai SHAP"],
-                color=colors
-            )
-            ax.axvline(0, color="black", linewidth=0.8)
-            ax.set_xlabel("Kontribusi SHAP terhadap output keputusan")
-            ax.set_title(f"Penjelasan untuk kelas {prediction}")
-            plt.tight_layout()
-            st.pyplot(fig, use_container_width=True)
-            plt.close(fig)
-
-            st.dataframe(
-                shap_df,
-                use_container_width=True,
-                hide_index=True
-            )
-            st.caption(
-                "Nilai SHAP positif mendorong output keputusan kelas yang "
-                "dijelaskan ke arah lebih tinggi; nilai negatif mendorongnya "
-                "ke arah lebih rendah. Ini menjelaskan perilaku model, bukan "
-                "penyebab stres atau probabilitas kelas."
-            )
-
-        except Exception as e:
-            st.error("Penjelasan SHAP gagal dihitung.")
-            st.exception(e)
+            except Exception as e:
+                st.error("Penjelasan SHAP gagal dihitung.")
+                st.exception(e)
 
 # -----------------------------
 # Tab 2
