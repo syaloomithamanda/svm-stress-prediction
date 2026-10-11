@@ -197,25 +197,45 @@ with tab1:
 
     c1, c2 = st.columns(2)
     with c1:
-        pass_value = st.number_input(
+        pass_text = st.text_input(
             "📘 Nilai PASS",
-            min_value=18,
-            max_value=90,
-            value=None,
-            step=1,
-            format="%d",
-            help="PASS terdiri dari 18 item dengan skor 1–5; skor total teoretis 18–90. Input dibiarkan kosong sampai Anda memasukkan skor."
+            value="",
+            placeholder="Masukkan skor 18–90",
+            help="PASS terdiri dari 18 item dengan skor 1–5; skor total teoretis 18–90."
         )
     with c2:
-        psqi_value = st.number_input(
+        psqi_text = st.text_input(
             "🌙 Nilai PSQI",
-            min_value=0,
-            max_value=21,
-            value=None,
-            step=1,
-            format="%d",
-            help="Masukkan skor global PSQI (0–21). Input dibiarkan kosong sampai Anda memasukkan skor."
+            value="",
+            placeholder="Masukkan skor 0–21",
+            help="Masukkan skor global PSQI dengan rentang teoretis 0–21."
         )
+
+    # Input dikosongkan pada awal aplikasi dan divalidasi sebelum model dipanggil.
+    pass_value = None
+    psqi_value = None
+    pass_format_invalid = False
+    psqi_format_invalid = False
+
+    if pass_text.strip():
+        try:
+            parsed_pass = float(pass_text.strip())
+            if parsed_pass.is_integer():
+                pass_value = int(parsed_pass)
+            else:
+                pass_format_invalid = True
+        except ValueError:
+            pass_format_invalid = True
+
+    if psqi_text.strip():
+        try:
+            parsed_psqi = float(psqi_text.strip())
+            if parsed_psqi.is_integer():
+                psqi_value = int(parsed_psqi)
+            else:
+                psqi_format_invalid = True
+        except ValueError:
+            psqi_format_invalid = True
 
     st.caption(
         "Rentang skor teoretis: PASS 18–90 (18 item, masing-masing 1–5) "
@@ -230,8 +250,12 @@ with tab1:
 
     # Validasi teoretis dipisahkan dari rentang pengamatan.
     # PASS 18–90 (18 item x 1–5); PSQI 0–21.
-    pass_invalid = pass_value is not None and not (18 <= pass_value <= 90)
-    psqi_invalid = psqi_value is not None and not (0 <= psqi_value <= 21)
+    pass_invalid = pass_format_invalid or (
+        pass_value is not None and not (18 <= pass_value <= 90)
+    )
+    psqi_invalid = psqi_format_invalid or (
+        psqi_value is not None and not (0 <= psqi_value <= 21)
+    )
 
     pass_outside = (
         pass_value is not None
@@ -244,13 +268,17 @@ with tab1:
 
     if pass_invalid or psqi_invalid:
         invalid_messages = []
-        if pass_invalid:
+        if pass_format_invalid:
+            invalid_messages.append("PASS harus berupa bilangan bulat.")
+        elif pass_invalid:
             invalid_messages.append(
-                f"PASS saat ini {pass_value:g}; rentang teoretis yang valid adalah 18–90."
+                f"PASS saat ini {pass_value}; rentang teoretis yang valid adalah 18–90."
             )
-        if psqi_invalid:
+        if psqi_format_invalid:
+            invalid_messages.append("PSQI harus berupa bilangan bulat.")
+        elif psqi_invalid:
             invalid_messages.append(
-                f"PSQI saat ini {psqi_value:g}; rentang teoretis yang valid adalah 0–21."
+                f"PSQI saat ini {psqi_value}; rentang teoretis yang valid adalah 0–21."
             )
         st.error(
             "Input tidak valid. Prediksi dan penjelasan SHAP tidak akan dihitung. "
@@ -285,7 +313,10 @@ with tab1:
         "🔍 Prediksi Tingkat Stres",
         type="primary",
         use_container_width=True,
-        disabled=pass_invalid or psqi_invalid,
+        disabled=(
+            pass_invalid or psqi_invalid
+            or pass_value is None or psqi_value is None
+        ),
     ):
         if pass_value is None or psqi_value is None:
             st.warning("Masukkan skor PASS dan PSQI terlebih dahulu.")
