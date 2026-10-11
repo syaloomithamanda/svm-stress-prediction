@@ -388,6 +388,9 @@ with tab2:
         .astype(int)
     )
     actual_total = int(actual_counts.sum())
+    if actual_total == 0:
+        st.warning("Dataset tidak berisi kategori stres yang dapat dianalisis.")
+        st.stop()
     actual_pct = actual_counts / actual_total * 100
 
     # Validasi angka yang ditampilkan.
@@ -501,7 +504,7 @@ with tab2:
     if actual_total != 150:
         st.warning(
             f"File saat ini berisi {actual_total} responden, bukan 150. "
-            "Periksa kembali hasil_prediksi_final.csv."
+            "Periksa kembali dataset_responden_app.csv dan data penelitian."
         )
 
 # -----------------------------
@@ -612,17 +615,11 @@ with tab4:
     st.write("**Kelas Tinggi:** PASS memiliki mean absolute SHAP 0.648638, sedangkan PSQI 0.580207.")
     st.caption("Nilai tersebut menunjukkan kontribusi fitur terhadap keputusan model pada data yang dianalisis. Nilai SHAP tidak digunakan sebagai bukti hubungan sebab-akibat.")
 
-    st.subheader("Contoh Penjelasan Individu")
-    examples = pd.DataFrame(
-        {
-            "ID": [5, 33, 124],
-            "Aktual": ["Sedang", "Tinggi", "Sedang"],
-            "Prediksi": ["Sedang", "Tinggi", "Rendah"],
-            "PASS": [59, 46, 55],
-            "PSQI": [9, 11, 8],
-        }
+    st.info(
+        "Penjelasan SHAP untuk satu input tersedia pada tab Prediksi Individu. "
+        "Contoh statis tidak ditampilkan agar tidak tertukar dengan hasil "
+        "prediksi aktual yang dihitung dari model saat aplikasi dijalankan."
     )
-    st.dataframe(examples, use_container_width=True, hide_index=True)
 
 st.divider()
 st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT  •  Support Vector Machine (SVM) + Explainable AI (SHAP)")
@@ -688,4 +685,10 @@ with tab5:
         "Accuracy dan balanced accuracy menggambarkan aspek yang berbeda. "
         "Balanced accuracy memperhitungkan recall masing-masing kelas sehingga "
         "lebih informatif ketika jumlah anggota kelas tidak seimbang."
+    )
+    st.warning(
+        "Interpretasikan metrik per kelas dengan hati-hati: data uji hanya "
+        "berisi 30 responden dan kelas Rendah memiliki dukungan yang sangat kecil. "
+        "Hasil evaluasi ini belum cukup untuk menyimpulkan performa yang stabil "
+        "pada populasi mahasiswa secara umum."
     )
