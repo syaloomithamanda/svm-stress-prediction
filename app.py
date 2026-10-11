@@ -202,8 +202,8 @@ with tab1:
             min_value=18.0,
             max_value=90.0,
             value=None,
-            step=1.0,
-            format="%.0f",
+            step=1,
+            format="%d",
             help="PASS terdiri dari 18 item dengan skor 1–5; skor total teoretis 18–90. Input dibiarkan kosong sampai Anda memasukkan skor."
         )
     with c2:
@@ -212,8 +212,8 @@ with tab1:
             min_value=0.0,
             max_value=21.0,
             value=None,
-            step=1.0,
-            format="%.0f",
+            step=1,
+            format="%d",
             help="Masukkan skor global PSQI (0–21). Input dibiarkan kosong sampai Anda memasukkan skor."
         )
 
@@ -671,8 +671,9 @@ st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT  •  Support
 with tab5:
     st.header("Performa Model SVM")
     st.write(
-        "Metrik berikut berasal dari evaluasi model final pada data pengujian "
-        "(30 responden) menggunakan pembagian data 80:20 secara stratified."
+        "Metrik berikut adalah hasil evaluasi model SVM final pada data uji "
+        "(30 responden) dari pembagian 80:20 secara stratified. Angka ditampilkan "
+        "sebagai hasil evaluasi eksperimen, bukan dihitung dari prediksi batch seluruh responden."
     )
 
     metrics = {
@@ -691,17 +692,72 @@ with tab5:
             st.metric(label, f"{value * 100:.2f}%")
 
     st.subheader("Confusion Matrix")
+    # Confusion matrix hasil evaluasi model final pada 30 data uji.
+    # Urutan baris/kolom: Rendah, Sedang, Tinggi.
     cm = np.array([
         [1, 0, 0],
         [6, 10, 5],
         [0, 4, 4],
-    ])
+    ], dtype=int)
     cm_df = pd.DataFrame(
         cm,
         index=[f"Aktual {x}" for x in STRESS_CLASSES],
         columns=[f"Prediksi {x}" for x in STRESS_CLASSES],
     )
     st.dataframe(cm_df, use_container_width=True)
+
+    # Audit internal: pastikan metrik yang ditampilkan konsisten
+    # dengan confusion matrix yang ditampilkan.
+    row_totals = cm.sum(axis=1)
+    col_totals = cm.sum(axis=0)
+    diagonal = np.diag(cm)
+    recalls = np.divide(
+        diagonal, row_totals,
+        out=np.zeros_like(diagonal, dtype=float),
+        where=row_totals != 0
+    )
+    precisions = np.divide(
+        diagonal, col_totals,
+        out=np.zeros_like(diagonal, dtype=float),
+        where=col_totals != 0
+    )
+    f1_each = np.divide(
+        2 * precisions * recalls,
+        precisions + recalls,
+        out=np.zeros_like(precisions, dtype=float),
+        where=(precisions + recalls) != 0
+    )
+    cm_accuracy = diagonal.sum() / cm.sum()
+    cm_balanced_accuracy = recalls.mean()
+    cm_macro_precision = precisions.mean()
+    cm_macro_f1 = f1_each.mean()
+
+    expected_metrics = {
+        "Accuracy": 0.5000,
+        "Balanced Accuracy": 0.6587,
+        "Macro Precision": 0.4339,
+        "Macro F1": 0.4307,
+    }
+    calculated_metrics = {
+        "Accuracy": cm_accuracy,
+        "Balanced Accuracy": cm_balanced_accuracy,
+        "Macro Precision": cm_macro_precision,
+        "Macro F1": cm_macro_f1,
+    }
+    mismatch = [
+        name for name, expected_value in expected_metrics.items()
+        if abs(calculated_metrics[name] - expected_value) > 0.001
+    ]
+    if mismatch:
+        st.error(
+            "Audit metrik gagal: metrik yang dicantumkan tidak konsisten "
+            f"dengan confusion matrix untuk {', '.join(mismatch)}."
+        )
+    else:
+        st.success(
+            "Pemeriksaan konsistensi berhasil: accuracy, balanced accuracy, "
+            "macro precision, dan macro F1 konsisten dengan confusion matrix."
+        )
 
     st.caption(
         "Baris menunjukkan kelas aktual dan kolom menunjukkan kelas prediksi. "
