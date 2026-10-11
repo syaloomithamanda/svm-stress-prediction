@@ -110,6 +110,24 @@ except Exception as e:
     st.exception(e)
     st.stop()
 
+@st.cache_resource
+def create_shap_explainer():
+    def predict_decision(data):
+        if isinstance(data, pd.DataFrame):
+            input_df = data[EXPECTED_FEATURES]
+        else:
+            input_df = pd.DataFrame(
+                data,
+                columns=EXPECTED_FEATURES
+            )
+
+        return model.decision_function(input_df)
+
+    return shap.KernelExplainer(
+        predict_decision,
+        background
+    )
+
 # -----------------------------
 # Sidebar
 # -----------------------------
@@ -247,6 +265,84 @@ with tab1:
         
         if prediction == "Rendah":
              st.success(f"🟢 **{prediction.upper()}**")
+
+        st.subheader("Penjelasan SHAP")
+
+        try:
+            explainer = create_shap_explainer()
+
+            with st.spinner("Menghitung SHAP..."):
+                shap_values = explainer.shap_values(
+                    input_data,
+                    nsamples=100
+                )
+
+            values = np.asarray(shap_values)
+
+            # Format yang diharapkan:
+            # (jumlah_sampel, jumlah_fitur, jumlah_kelas)
+            if values.ndim == 3 and values.shape[0] == 1:
+                class_index = list(model.classes_).index(
+                    prediction
+                )
+
+                contributions = values[0, :, class_index]
+
+                shap_df = pd.DataFrame({
+                    "Fitur": EXPECTED_FEATURES,
+                    "Nilai SHAP": contributions
+                })
+
+                shap_df = shap_df.sort_values(
+                    "Nilai SHAP"
+                )
+
+                fig, ax = plt.subplots(figsize=(7, 3.5))
+
+                colors = [
+                    "#EF4444" if v < 0 else "#22C55E"
+                    for v in shap_df["Nilai SHAP"]
+                ]
+
+                ax.barh(
+                    shap_df["Fitur"],
+                    shap_df["Nilai SHAP"],
+                    color=colors
+                )
+                ax.axvline(0, color="black", linewidth=0.8)
+                ax.set_xlabel(
+                    "Kontribusi SHAP terhadap output keputusan"
+                )
+                ax.set_title(
+                    f"Penjelasan untuk kelas {prediction}"
+                )
+
+                plt.tight_layout()
+                st.pyplot(fig, use_container_width=True)
+                plt.close(fig)
+
+                st.dataframe(
+                    shap_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                st.caption(
+                    "Nilai SHAP positif mendorong output keputusan "
+                    "kelas yang dijelaskan ke arah lebih tinggi; "
+                    "nilai negatif mendorongnya ke arah lebih rendah. "
+                    "Nilai ini bukan probabilitas dan bukan bukti sebab-akibat."
+                )
+            else:
+                st.warning(
+                    "Format hasil SHAP berbeda dari format yang "
+                    "diharapkan. Periksa versi SHAP dan bentuk output."
+                )
+
+        except Exception as e:
+            st.error("Penjelasan SHAP gagal dihitung.")
+            st.exception(e)
+        
         elif prediction == "Sedang":
             st.warning(f"🟡 **{prediction.upper()}**")
         else:
