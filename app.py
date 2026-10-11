@@ -199,8 +199,8 @@ with tab1:
     with c1:
         pass_value = st.number_input(
             "📘 Nilai PASS",
-            min_value=18.0,
-            max_value=90.0,
+            min_value=18,
+            max_value=90,
             value=None,
             step=1,
             format="%d",
@@ -209,8 +209,8 @@ with tab1:
     with c2:
         psqi_value = st.number_input(
             "🌙 Nilai PSQI",
-            min_value=0.0,
-            max_value=21.0,
+            min_value=0,
+            max_value=21,
             value=None,
             step=1,
             format="%d",
