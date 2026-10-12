@@ -1,0 +1,26 @@
+{
+  "best_params": {
+    "svc__C": 100,
+    "svc__class_weight": "balanced",
+    "svc__gamma": 0.1
+  },
+  "best_cv_macro_f1": 0.52793186735292,
+  "metrics": {
+    "Accuracy": 0.5,
+    "Balanced Accuracy": 0.6587301587301587,
+    "Macro Precision": 0.4338624338624339,
+    "Macro Recall": 0.6587301587301587,
+    "Macro F1": 0.430672268907563
+  },
+  "classes": [
+    "Rendah",
+    "Sedang",
+    "Tinggi"
+  ],
+  "features": [
+    "PASS",
+    "PSQI"
+  ],
+  "test_size": 30,
+  "random_state": 42
+}
