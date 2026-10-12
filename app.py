@@ -200,19 +200,19 @@ with tab1:
         pass_text = st.text_input(
             "📘 Nilai PASS",
             value="",
-            placeholder="Masukkan skor 18–90",
-            help="PASS terdiri dari 18 item dengan skor 1–5; skor total teoretis 18–90."
+            placeholder="Masukkan skor bulat 18–90",
+            help="PASS Total dihitung dari 18 item berskala 1–5; rentang teoretis total 18–90."
         )
     with c2:
         psqi_text = st.text_input(
             "🌙 Nilai PSQI",
             value="",
-            placeholder="Masukkan skor 0–21",
-            help="Masukkan skor global PSQI dengan rentang teoretis 0–21."
+            placeholder="Masukkan skor bulat 0–21",
+            help="Masukkan skor global PSQI (jumlah 7 komponen), dengan rentang teoretis 0–21."
         )
 
-    # Input kosong/non-numerik tidak dapat diproses. Angka numerik tidak diblokir
-    # berdasarkan rentang teoretis atau rentang pengamatan; peringatan hanya memberi konteks.
+    # Skor instrumen harus berupa angka bulat yang sah. Nilai di luar rentang
+    # teoretis tidak diproses sebagai skor kuesioner yang valid.
     pass_value = None
     psqi_value = None
     pass_format_invalid = False
@@ -236,17 +236,17 @@ with tab1:
         except ValueError:
             psqi_format_invalid = True
 
-    st.caption(
-        "Input numerik akan diproses oleh model. Rentang teoretis PASS 18–90 "
-        "dan PSQI 0–21 serta rentang yang diamati dalam data digunakan sebagai "
-        "panduan interpretasi, bukan sebagai pembatas prediksi."
-    )
-
     pass_observed_min = float(df["PASS"].min())
     pass_observed_max = float(df["PASS"].max())
     psqi_observed_min = float(df["PSQI"].min())
     psqi_observed_max = float(df["PSQI"].max())
 
+    pass_not_integer = (
+        pass_value is not None and not float(pass_value).is_integer()
+    )
+    psqi_not_integer = (
+        psqi_value is not None and not float(psqi_value).is_integer()
+    )
     pass_outside_theoretical = (
         pass_value is not None and not (18 <= pass_value <= 90)
     )
@@ -262,6 +262,12 @@ with tab1:
         and not (psqi_observed_min <= psqi_value <= psqi_observed_max)
     )
 
+    input_invalid = (
+        pass_format_invalid or psqi_format_invalid
+        or pass_not_integer or psqi_not_integer
+        or pass_outside_theoretical or psqi_outside_theoretical
+    )
+
     if pass_format_invalid or psqi_format_invalid:
         invalid_messages = []
         if pass_format_invalid:
@@ -270,45 +276,53 @@ with tab1:
             invalid_messages.append("PSQI harus berupa angka yang valid dan terbatas (finite).")
         st.error("Input tidak dapat dibaca. " + " ".join(invalid_messages))
 
-    range_messages = []
+    if pass_not_integer:
+        st.error("PASS harus berupa skor bulat karena merupakan total skor item kuesioner.")
+    if psqi_not_integer:
+        st.error("PSQI harus berupa skor bulat karena merupakan skor global tujuh komponen.")
+
     if pass_outside_theoretical:
-        range_messages.append(
-            f"PASS {pass_value:g} berada di luar rentang teoretis standar 18–90."
+        st.error(
+            f"PASS {pass_value:g} berada di luar rentang teoretis 18–90. "
+            "Periksa kembali skor total PASS."
         )
     if psqi_outside_theoretical:
-        range_messages.append(
-            f"PSQI {psqi_value:g} berada di luar rentang teoretis standar 0–21."
+        st.error(
+            f"PSQI {psqi_value:g} berada di luar rentang teoretis 0–21. "
+            "Periksa kembali skor global PSQI."
         )
-    if pass_outside_observed:
+
+    range_messages = []
+    if pass_outside_observed and not pass_outside_theoretical:
         range_messages.append(
             f"PASS {pass_value:g} berada di luar rentang pengamatan data "
             f"({pass_observed_min:.0f}–{pass_observed_max:.0f})."
         )
-    if psqi_outside_observed:
+    if psqi_outside_observed and not psqi_outside_theoretical:
         range_messages.append(
             f"PSQI {psqi_value:g} berada di luar rentang pengamatan data "
             f"({psqi_observed_min:.0f}–{psqi_observed_max:.0f})."
         )
     if range_messages:
         st.warning(
-            "Model tetap akan menghitung prediksi dan SHAP untuk input numerik. "
-            "Namun, input di luar rentang instrumen atau data latih dapat membuat "
-            "hasil kurang representatif dan harus ditafsirkan dengan hati-hati. "
+            "Skor masih berada dalam rentang teoretis instrumen, tetapi di luar "
+            "rentang yang diamati pada dataset. Model tetap dapat menghitung "
+            "prediksi dan SHAP, namun hasil perlu ditafsirkan dengan hati-hati. "
             + " ".join(range_messages)
         )
-        st.caption(
-            "Prediksi merupakan keluaran model SVM, bukan validasi skor instrumen "
-            "dan bukan bukti sebab-akibat. SHAP menjelaskan kontribusi fitur terhadap "
-            "output keputusan model untuk input ini."
-        )
+
+    st.caption(
+        "Input harus berupa skor bulat yang sah menurut rentang teoretis instrumen. "
+        "Skor valid yang berada di luar rentang pengamatan dataset tetap dapat "
+        "diproses, dengan peringatan."
+    )
 
     if st.button(
         "🔍 Prediksi Tingkat Stres",
         type="primary",
         use_container_width=True,
         disabled=(
-            pass_format_invalid or psqi_format_invalid
-            or pass_value is None or psqi_value is None
+            input_invalid or pass_value is None or psqi_value is None
         ),
     ):
         if pass_value is None or psqi_value is None:
