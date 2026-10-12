@@ -766,6 +766,41 @@ with tab5:
         "sebagai hasil evaluasi eksperimen, bukan dihitung dari prediksi batch seluruh responden."
     )
 
+    # Baca skor validasi silang dari metrik_model.json
+    import json
+    from pathlib import Path
+
+    metrics_path = Path("metrik_model.json")
+
+    if metrics_path.exists():
+        try:
+            with metrics_path.open("r", encoding="utf-8") as f:
+                experiment_metrics = json.load(f)
+
+            cv_macro_f1 = experiment_metrics.get("best_cv_macro_f1")
+
+            if cv_macro_f1 is not None:
+                st.metric(
+                    "CV Macro F1 (Validasi Silang Terbaik)",
+                    f"{float(cv_macro_f1) * 100:.2f}%"
+                )
+                st.caption(
+                    "Skor validasi silang terbaik dari pencarian parameter "
+                    "model; berbeda dari Macro F1 pada data uji."
+                )
+            else:
+                st.warning(
+                    "Nilai best_cv_macro_f1 tidak ditemukan "
+                    "dalam metrik_model.json."
+                )
+
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
+            st.error(f"Gagal membaca skor validasi silang: {e}")
+    else:
+        st.warning(
+            "File metrik_model.json tidak ditemukan di root repository."
+        )
+    
     st.subheader("Confusion Matrix")
     # Confusion matrix hasil evaluasi model final pada 30 data uji.
     # Urutan baris/kolom: Rendah, Sedang, Tinggi.
