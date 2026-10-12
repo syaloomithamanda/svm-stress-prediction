@@ -3,6 +3,7 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 import joblib
+import json
 import shap
 import matplotlib.pyplot as plt
 
@@ -634,64 +635,115 @@ with tab4:
     st.write("SHAP digunakan untuk menjelaskan kontribusi fitur **PASS** dan **PSQI** terhadap output keputusan model SVM.")
     st.info("Model SVM final menggunakan probability=False. Karena itu, SHAP menjelaskan output **decision_function**, bukan probabilitas prediksi.")
 
-    shap_global = pd.DataFrame(
-        {
-            "Kelas": ["Rendah", "Rendah", "Sedang", "Sedang", "Tinggi", "Tinggi"],
-            "Fitur": ["PASS", "PSQI", "PASS", "PSQI", "PASS", "PSQI"],
-            "Mean |SHAP|": [0.555542, 0.580899, 0.269581, 0.285503, 0.648638, 0.580207],
-            "Mean SHAP": [0.211535, 0.116239, -0.037854, 0.036628, -0.166991, -0.155836],
-            "SHAP Min": [-0.774064, -0.789384, -0.431665, -0.491609, -1.062037, -1.059518],
-            "SHAP Max": [1.275040, 1.367352, 0.406396, 0.495525, 0.960726, 0.803173],
-        }
-    )
+    # Ringkasan global dihitung langsung dari nilai SHAP pada data uji.
+    shap_file = "shap_values_testing.csv"
+    expected_shap_columns = {
+        "SHAP_PASS_Rendah", "SHAP_PSQI_Rendah",
+        "SHAP_PASS_Sedang", "SHAP_PSQI_Sedang",
+        "SHAP_PASS_Tinggi", "SHAP_PSQI_Tinggi",
+    }
+    try:
+        shap_test = pd.read_csv(shap_file)
+        missing_shap_columns = sorted(expected_shap_columns - set(shap_test.columns))
+        if missing_shap_columns:
+            raise ValueError(
+                "Kolom SHAP yang diperlukan tidak ditemukan: "
+                + ", ".join(missing_shap_columns)
+            )
+        if shap_test.empty:
+            raise ValueError("File SHAP tidak berisi baris data.")
+
+        shap_rows = []
+        for class_name in STRESS_CLASSES:
+            for feature in EXPECTED_FEATURES:
+                column = f"SHAP_{feature}_{class_name}"
+                values = pd.to_numeric(shap_test[column], errors="coerce")
+                if values.isna().any() or not np.isfinite(values.to_numpy()).all():
+                    raise ValueError(f"Kolom {column} berisi nilai kosong atau nonnumerik.")
+                shap_rows.append({
+                    "Kelas": class_name,
+                    "Fitur": feature,
+                    "Mean |SHAP|": float(values.abs().mean()),
+                    "Mean SHAP": float(values.mean()),
+                    "SHAP Min": float(values.min()),
+                    "SHAP Max": float(values.max()),
+                })
+        shap_global = pd.DataFrame(shap_rows)
+        st.caption(f"Ringkasan dihitung dari {len(shap_test)} baris pada {shap_file}.")
+    except FileNotFoundError:
+        st.error(
+            f"File {shap_file} tidak ditemukan. Tambahkan file tersebut ke root "
+            "repository agar ringkasan SHAP global dapat ditampilkan."
+        )
+        shap_global = pd.DataFrame(columns=[
+            "Kelas", "Fitur", "Mean |SHAP|", "Mean SHAP", "SHAP Min", "SHAP Max"
+        ])
+    except Exception as e:
+        st.error("Ringkasan SHAP global tidak dapat dihitung dari file SHAP.")
+        st.exception(e)
+        shap_global = pd.DataFrame(columns=[
+            "Kelas", "Fitur", "Mean |SHAP|", "Mean SHAP", "SHAP Min", "SHAP Max"
+        ])
 
     st.subheader("Global Feature Importance")
     st.caption("Mean absolute SHAP dari 30 data uji penelitian.")
 
-    # Visual summary cards by class
-    r1, r2, r3 = st.columns(3)
-    for col, cat in zip([r1, r2, r3], STRESS_CLASSES):
-        row = shap_global[shap_global["Kelas"] == cat].set_index("Fitur")["Mean |SHAP|"]
-        with col:
-            if cat == "Rendah":
-                st.success(f"{STRESS_ICONS[cat]} **{cat}**")
-            elif cat == "Sedang":
-                st.warning(f"{STRESS_ICONS[cat]} **{cat}**")
+    if not shap_global.empty:
+        # Kartu ringkasan per kelas
+        r1, r2, r3 = st.columns(3)
+        for col, cat in zip([r1, r2, r3], STRESS_CLASSES):
+            row = shap_global[shap_global["Kelas"] == cat].set_index("Fitur")["Mean |SHAP|"]
+            with col:
+                if cat == "Rendah":
+                    st.success(f"{STRESS_ICONS[cat]} **{cat}**")
+                elif cat == "Sedang":
+                    st.warning(f"{STRESS_ICONS[cat]} **{cat}**")
+                else:
+                    st.error(f"{STRESS_ICONS[cat]} **{cat}**")
+                st.metric("PASS", f"{row['PASS']:.6f}")
+                st.metric("PSQI", f"{row['PSQI']:.6f}")
+
+        st.subheader("Tabel Nilai SHAP")
+        st.dataframe(
+            shap_global.style.format({c: "{:.6f}" for c in ["Mean |SHAP|", "Mean SHAP", "SHAP Min", "SHAP Max"]}),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.subheader("Perbandingan Mean Absolute SHAP")
+        pivot = shap_global.pivot(index="Kelas", columns="Fitur", values="Mean |SHAP|").loc[STRESS_CLASSES]
+        fig, ax = plt.subplots(figsize=(9, 4.8))
+        x = np.arange(len(STRESS_CLASSES))
+        width = 0.34
+        ax.bar(x - width / 2, pivot["PASS"], width, label="PASS", color="#4F46E5")
+        ax.bar(x + width / 2, pivot["PSQI"], width, label="PSQI", color="#06B6D4")
+        ax.set_xticks(x)
+        ax.set_xticklabels(STRESS_CLASSES)
+        ax.set_ylabel("Mean |SHAP|")
+        ax.set_title("Kontribusi Rata-rata Fitur berdasarkan Kelas", fontweight="bold")
+        ax.legend(frameon=False)
+        ax.grid(axis="y", alpha=0.18)
+        ax.set_axisbelow(True)
+        plt.tight_layout()
+        st.pyplot(fig, use_container_width=True)
+        plt.close(fig)
+
+        st.subheader("Interpretasi")
+        for cat in STRESS_CLASSES:
+            class_rows = shap_global[shap_global["Kelas"] == cat].set_index("Fitur")
+            pass_mean = class_rows.loc["PASS", "Mean |SHAP|"]
+            psqi_mean = class_rows.loc["PSQI", "Mean |SHAP|"]
+            if pass_mean > psqi_mean:
+                lead_feature, lead_value = "PASS", pass_mean
+                other_feature, other_value = "PSQI", psqi_mean
             else:
-                st.error(f"{STRESS_ICONS[cat]} **{cat}**")
-            st.metric("PASS", f"{row['PASS']:.4f}")
-            st.metric("PSQI", f"{row['PSQI']:.4f}")
-
-    st.subheader("Tabel Nilai SHAP")
-    st.dataframe(
-        shap_global.style.format({c: "{:.6f}" for c in ["Mean |SHAP|", "Mean SHAP", "SHAP Min", "SHAP Max"]}),
-        use_container_width=True,
-        hide_index=True,
-    )
-
-    st.subheader("Perbandingan Mean Absolute SHAP")
-    pivot = shap_global.pivot(index="Kelas", columns="Fitur", values="Mean |SHAP|").loc[STRESS_CLASSES]
-    fig, ax = plt.subplots(figsize=(9, 4.8))
-    x = np.arange(len(STRESS_CLASSES))
-    width = 0.34
-    ax.bar(x - width / 2, pivot["PASS"], width, label="PASS", color="#4F46E5")
-    ax.bar(x + width / 2, pivot["PSQI"], width, label="PSQI", color="#06B6D4")
-    ax.set_xticks(x)
-    ax.set_xticklabels(STRESS_CLASSES)
-    ax.set_ylabel("Mean |SHAP|")
-    ax.set_title("Kontribusi Rata-rata Fitur berdasarkan Kelas", fontweight="bold")
-    ax.legend(frameon=False)
-    ax.grid(axis="y", alpha=0.18)
-    ax.set_axisbelow(True)
-    plt.tight_layout()
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
-
-    st.subheader("Interpretasi")
-    st.write("**Kelas Rendah:** PSQI memiliki mean absolute SHAP 0.580899, sedangkan PASS 0.555542.")
-    st.write("**Kelas Sedang:** PSQI memiliki mean absolute SHAP 0.285503, sedangkan PASS 0.269581.")
-    st.write("**Kelas Tinggi:** PASS memiliki mean absolute SHAP 0.648638, sedangkan PSQI 0.580207.")
-    st.caption("Nilai tersebut menunjukkan kontribusi fitur terhadap keputusan model pada data yang dianalisis. Nilai SHAP tidak digunakan sebagai bukti hubungan sebab-akibat.")
+                lead_feature, lead_value = "PSQI", psqi_mean
+                other_feature, other_value = "PASS", pass_mean
+            st.write(
+                f"**Kelas {cat}:** {lead_feature} memiliki mean absolute SHAP "
+                f"{lead_value:.6f}, sedangkan {other_feature} {other_value:.6f}."
+            )
+        st.caption("Nilai tersebut menunjukkan besarnya kontribusi fitur terhadap output keputusan model pada data yang dianalisis. Nilai SHAP tidak membuktikan hubungan sebab-akibat.")
 
     st.info(
         "Penjelasan SHAP untuk satu input tersedia pada tab Prediksi Individu. "
@@ -822,16 +874,25 @@ with tab5:
     )
 
     st.subheader("Konfigurasi Model Final")
-    config_df = pd.DataFrame({
-        "Komponen": [
-            "Algoritma", "Kernel", "C", "Gamma",
-            "Class Weight", "Standardisasi", "Fitur"
-        ],
-        "Nilai": [
-            "Support Vector Machine", "RBF", "100", "0.1",
-            "balanced", "StandardScaler", "PASS + PSQI"
-        ],
-    })
+    config_items = [
+        ("Algoritma", "Support Vector Machine"),
+        ("Kernel", "RBF"),
+        ("C", "100"),
+        ("Gamma", "0.1"),
+        ("Class Weight", "balanced"),
+        ("Standardisasi", "StandardScaler"),
+        ("Fitur", "PASS + PSQI"),
+    ]
+    # Ambil skor CV dari artefak eksperimen jika file tersedia.
+    try:
+        with open("metrik_model.json", "r", encoding="utf-8") as metrics_file:
+            experiment_metrics = json.load(metrics_file)
+        cv_score = experiment_metrics.get("macro_f1_cross_validation")
+        if cv_score is not None:
+            config_items.append(("CV Macro F1 (GridSearchCV)", f"{float(cv_score):.6f}"))
+    except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
+        pass
+    config_df = pd.DataFrame(config_items, columns=["Komponen", "Nilai"])
     st.dataframe(config_df, use_container_width=True, hide_index=True)
 
     st.info(
