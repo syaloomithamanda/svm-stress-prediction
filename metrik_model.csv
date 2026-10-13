@@ -1,0 +1,7 @@
+Metrik,Nilai,Nilai (%)
+Accuracy,0.5,50.0
+Balanced accuracy,0.6587301587301587,65.87
+Macro precision,0.4338624338624339,43.39
+Macro recall,0.6587301587301587,65.87
+Macro F1,0.430672268907563,43.07
+Weighted F1,0.5338235294117647,53.38
