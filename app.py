@@ -6,6 +6,15 @@ import joblib
 import json
 import shap
 import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    confusion_matrix,
+    classification_report,
+)
 
 st.set_page_config(
     page_title="Prediksi Tingkat Stres UNSRAT",
@@ -108,12 +117,9 @@ try:
         df["PSQI"], errors="raise"
     )
 
-    # Buat prediksi batch memakai model final,
-    # jika kolom prediksi belum tersedia.
-    if "Prediksi_Batch" not in df.columns:
-        df["Prediksi_Batch"] = model.predict(
-            df[EXPECTED_FEATURES]
-        )
+    # Selalu hitung ulang prediksi batch menggunakan model final dari Colab.
+    # Ini mencegah kolom Prediksi_Batch lama di CSV menampilkan hasil model berbeda.
+    df["Prediksi_Batch"] = model.predict(df[EXPECTED_FEATURES])
 
 except FileNotFoundError:
     st.error(
@@ -756,153 +762,187 @@ st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT  •  Support
 
 
 # -----------------------------
-# Tab 5
+# Tab 5 — Evaluasi model dari artefak Google Colab
 # -----------------------------
 with tab5:
     st.header("Performa Model SVM")
     st.write(
-        "Metrik berikut adalah hasil evaluasi model SVM final pada data uji "
-        "(30 responden) dari pembagian 80:20 secara stratified. Angka ditampilkan "
-        "sebagai hasil evaluasi eksperimen, bukan dihitung dari prediksi batch seluruh responden."
+        "Metrik dihitung dari `hasil_prediksi_testing.csv` yang diekspor oleh notebook Google Colab. "
+        "Dengan demikian, tabel evaluasi tidak bergantung pada angka yang diketik manual di aplikasi."
     )
 
-    st.subheader("Confusion Matrix")
-    # Confusion matrix hasil evaluasi model final pada 30 data uji.
-    # Urutan baris/kolom: Rendah, Sedang, Tinggi.
-    cm = np.array([
-        [1, 0, 0],
-        [6, 10, 5],
-        [0, 4, 4],
-    ], dtype=int)
+    test_path = "hasil_prediksi_testing.csv"
+    metrics_path = "metrik_model.json"
 
-    # Hitung metrik langsung dari confusion matrix agar angka yang ditampilkan
-    # selalu konsisten dengan tabel evaluasi.
-    row_totals_for_metrics = cm.sum(axis=1)
-    col_totals_for_metrics = cm.sum(axis=0)
-    diagonal_for_metrics = np.diag(cm)
-    recalls_for_metrics = np.divide(
-        diagonal_for_metrics, row_totals_for_metrics,
-        out=np.zeros_like(diagonal_for_metrics, dtype=float),
-        where=row_totals_for_metrics != 0
-    )
-    precisions_for_metrics = np.divide(
-        diagonal_for_metrics, col_totals_for_metrics,
-        out=np.zeros_like(diagonal_for_metrics, dtype=float),
-        where=col_totals_for_metrics != 0
-    )
-    f1_for_metrics = np.divide(
-        2 * precisions_for_metrics * recalls_for_metrics,
-        precisions_for_metrics + recalls_for_metrics,
-        out=np.zeros_like(precisions_for_metrics, dtype=float),
-        where=(precisions_for_metrics + recalls_for_metrics) != 0
-    )
-    metrics = {
-        "Accuracy": diagonal_for_metrics.sum() / cm.sum(),
-        "Balanced Accuracy": recalls_for_metrics.mean(),
-        "Macro Precision": precisions_for_metrics.mean(),
-        "Macro Recall": recalls_for_metrics.mean(),
-        "Macro F1": f1_for_metrics.mean(),
-    }
-
-    a, b, c, d, e = st.columns(5)
-    for col, (label, value) in zip([a, b, c, d, e], metrics.items()):
-        with col:
-            st.metric(label, f"{value * 100:.2f}%")
-    cm_df = pd.DataFrame(
-        cm,
-        index=[f"Aktual {x}" for x in STRESS_CLASSES],
-        columns=[f"Prediksi {x}" for x in STRESS_CLASSES],
-    )
-    st.dataframe(cm_df, use_container_width=True)
-
-    # Audit internal: pastikan metrik yang ditampilkan konsisten
-    # dengan confusion matrix yang ditampilkan.
-    row_totals = cm.sum(axis=1)
-    col_totals = cm.sum(axis=0)
-    diagonal = np.diag(cm)
-    recalls = np.divide(
-        diagonal, row_totals,
-        out=np.zeros_like(diagonal, dtype=float),
-        where=row_totals != 0
-    )
-    precisions = np.divide(
-        diagonal, col_totals,
-        out=np.zeros_like(diagonal, dtype=float),
-        where=col_totals != 0
-    )
-    f1_each = np.divide(
-        2 * precisions * recalls,
-        precisions + recalls,
-        out=np.zeros_like(precisions, dtype=float),
-        where=(precisions + recalls) != 0
-    )
-    cm_accuracy = diagonal.sum() / cm.sum()
-    cm_balanced_accuracy = recalls.mean()
-    cm_macro_precision = precisions.mean()
-    cm_macro_f1 = f1_each.mean()
-
-    expected_metrics = {
-        "Accuracy": 0.5000,
-        "Balanced Accuracy": 0.6587,
-        "Macro Precision": 0.4339,
-        "Macro F1": 0.4307,
-    }
-    calculated_metrics = {
-        "Accuracy": cm_accuracy,
-        "Balanced Accuracy": cm_balanced_accuracy,
-        "Macro Precision": cm_macro_precision,
-        "Macro F1": cm_macro_f1,
-    }
-    mismatch = [
-        name for name, expected_value in expected_metrics.items()
-        if abs(calculated_metrics[name] - expected_value) > 0.001
-    ]
-    if mismatch:
-        st.error(
-            "Audit metrik gagal: metrik yang dicantumkan tidak konsisten "
-            f"dengan confusion matrix untuk {', '.join(mismatch)}."
-        )
-    else:
-        st.success(
-            "Pemeriksaan konsistensi berhasil: accuracy, balanced accuracy, "
-            "macro precision, dan macro F1 konsisten dengan confusion matrix."
-        )
-
-    st.caption(
-        "Baris menunjukkan kelas aktual dan kolom menunjukkan kelas prediksi. "
-        "Diagonal menunjukkan jumlah klasifikasi yang sesuai."
-    )
-
-    st.subheader("Konfigurasi Model Final")
-    config_items = [
-        ("Algoritma", "Support Vector Machine"),
-        ("Kernel", "RBF"),
-        ("C", "100"),
-        ("Gamma", "0.1"),
-        ("Class Weight", "balanced"),
-        ("Standardisasi", "StandardScaler"),
-        ("Fitur", "PASS + PSQI"),
-    ]
-    # Ambil skor CV dari artefak eksperimen jika file tersedia.
     try:
-        with open("metrik_model.json", "r", encoding="utf-8") as metrics_file:
-            experiment_metrics = json.load(metrics_file)
-        cv_score = experiment_metrics.get("macro_f1_cross_validation")
-        if cv_score is not None:
-            config_items.append(("CV Macro F1 (GridSearchCV)", f"{float(cv_score):.6f}"))
-    except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
-        pass
-    config_df = pd.DataFrame(config_items, columns=["Komponen", "Nilai"])
-    st.dataframe(config_df, use_container_width=True, hide_index=True)
+        test_df = pd.read_csv(test_path)
+        required_test_columns = ["Tingkat_Stres_Aktual", "Tingkat_Stres_Prediksi"]
+        missing_test_columns = [c for c in required_test_columns if c not in test_df.columns]
+        if missing_test_columns:
+            raise ValueError(
+                "Kolom wajib tidak ditemukan pada hasil pengujian: "
+                + ", ".join(missing_test_columns)
+            )
+        if test_df.empty:
+            raise ValueError("File hasil pengujian tidak berisi data.")
 
-    st.info(
-        "Accuracy dan balanced accuracy menggambarkan aspek yang berbeda. "
-        "Balanced accuracy memperhitungkan recall masing-masing kelas sehingga "
-        "lebih informatif ketika jumlah anggota kelas tidak seimbang."
-    )
-    st.warning(
-        "Interpretasikan metrik per kelas dengan hati-hati: data uji hanya "
-        "berisi 30 responden dan kelas Rendah memiliki dukungan yang sangat kecil. "
-        "Hasil evaluasi ini belum cukup untuk menyimpulkan performa yang stabil "
-        "pada populasi mahasiswa secara umum."
-    )
+        y_true = test_df["Tingkat_Stres_Aktual"].astype(str)
+        y_pred_test = test_df["Tingkat_Stres_Prediksi"].astype(str)
+        invalid_labels = (set(y_true) | set(y_pred_test)) - set(STRESS_CLASSES)
+        if invalid_labels:
+            raise ValueError(f"Label kelas tidak dikenali: {sorted(invalid_labels)}")
+
+        cm = confusion_matrix(y_true, y_pred_test, labels=STRESS_CLASSES)
+        calculated_metrics = {
+            "Accuracy": accuracy_score(y_true, y_pred_test),
+            "Balanced Accuracy": balanced_accuracy_score(y_true, y_pred_test),
+            "Macro Precision": precision_score(
+                y_true, y_pred_test, labels=STRESS_CLASSES, average="macro", zero_division=0
+            ),
+            "Macro Recall": recall_score(
+                y_true, y_pred_test, labels=STRESS_CLASSES, average="macro", zero_division=0
+            ),
+            "Macro F1": f1_score(
+                y_true, y_pred_test, labels=STRESS_CLASSES, average="macro", zero_division=0
+            ),
+            "Weighted F1": f1_score(
+                y_true, y_pred_test, labels=STRESS_CLASSES, average="weighted", zero_division=0
+            ),
+        }
+
+        st.caption(f"Sumber: `{test_path}` · jumlah data uji: {len(test_df)}")
+        st.subheader("Metrik Evaluasi")
+        metric_order = [
+            "Accuracy", "Balanced Accuracy", "Macro Precision",
+            "Macro Recall", "Macro F1", "Weighted F1"
+        ]
+        metric_cols = st.columns(3)
+        for i, metric_name in enumerate(metric_order):
+            with metric_cols[i % 3]:
+                st.metric(metric_name, f"{calculated_metrics[metric_name] * 100:.2f}%")
+
+        st.subheader("Confusion Matrix")
+        cm_df = pd.DataFrame(
+            cm,
+            index=[f"Aktual {name}" for name in STRESS_CLASSES],
+            columns=[f"Prediksi {name}" for name in STRESS_CLASSES],
+        )
+        st.dataframe(cm_df, use_container_width=True)
+        st.caption(
+            "Baris menunjukkan kelas aktual dan kolom menunjukkan kelas prediksi. "
+            "Diagonal menunjukkan jumlah klasifikasi yang benar."
+        )
+
+        st.subheader("Laporan Klasifikasi per Kelas")
+        report = classification_report(
+            y_true,
+            y_pred_test,
+            labels=STRESS_CLASSES,
+            output_dict=True,
+            zero_division=0,
+        )
+        report_rows = []
+        for label in STRESS_CLASSES:
+            item = report[label]
+            report_rows.append({
+                "Kelas": label,
+                "Precision": item["precision"],
+                "Recall": item["recall"],
+                "F1-score": item["f1-score"],
+                "Support": int(item["support"]),
+            })
+        report_df = pd.DataFrame(report_rows)
+        st.dataframe(
+            report_df.style.format({
+                "Precision": "{:.4f}",
+                "Recall": "{:.4f}",
+                "F1-score": "{:.4f}",
+            }),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        # Cocokkan metrik yang dihitung dari CSV dengan metrik yang diekspor notebook.
+        try:
+            with open(metrics_path, "r", encoding="utf-8") as metrics_file:
+                experiment = json.load(metrics_file)
+            saved_metrics = experiment.get("metrics", {})
+            comparison_keys = [
+                "Accuracy", "Balanced Accuracy", "Macro Precision", "Macro Recall", "Macro F1"
+            ]
+            discrepancies = []
+            for key in comparison_keys:
+                if key not in saved_metrics:
+                    discrepancies.append(f"{key}: tidak tersedia di {metrics_path}")
+                elif abs(float(saved_metrics[key]) - calculated_metrics[key]) > 1e-6:
+                    discrepancies.append(
+                        f"{key}: JSON={float(saved_metrics[key]):.6f}, "
+                        f"CSV={calculated_metrics[key]:.6f}"
+                    )
+            if discrepancies:
+                st.warning("Metrik JSON dan CSV berbeda:\n- " + "\n- ".join(discrepancies))
+            else:
+                st.success(
+                    "Audit berhasil: metrik dari hasil_prediksi_testing.csv sesuai dengan "
+                    "metrik yang tersimpan di metrik_model.json."
+                )
+        except FileNotFoundError:
+            st.warning(f"`{metrics_path}` tidak ditemukan; metrik tetap dihitung dari CSV pengujian.")
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            st.warning(f"File `{metrics_path}` tidak dapat dibaca untuk audit: {e}")
+
+        st.subheader("Konfigurasi Model dari Notebook")
+        config_items = [
+            ("Algoritma", "Support Vector Machine"),
+            ("Kernel", "RBF"),
+            ("Standardisasi", "StandardScaler"),
+            ("Fitur", " + ".join(feature_names)),
+            ("Jumlah data uji", str(len(test_df))),
+        ]
+        try:
+            with open(metrics_path, "r", encoding="utf-8") as metrics_file:
+                experiment = json.load(metrics_file)
+            best_params = experiment.get("best_params", {})
+            param_labels = {
+                "svc__C": "C",
+                "svc__gamma": "Gamma",
+                "svc__class_weight": "Class weight",
+            }
+            for key, label in param_labels.items():
+                if key in best_params:
+                    config_items.append((label, str(best_params[key])))
+            if "best_cv_macro_f1" in experiment:
+                config_items.append((
+                    "CV Macro F1 (GridSearchCV)",
+                    f"{float(experiment['best_cv_macro_f1']):.6f}",
+                ))
+            if "random_state" in experiment:
+                config_items.append(("Random state", str(experiment["random_state"])))
+        except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
+            config_items.extend([
+                ("C", "100"),
+                ("Gamma", "0.1"),
+                ("Class weight", "balanced"),
+            ])
+        config_df = pd.DataFrame(config_items, columns=["Komponen", "Nilai"])
+        st.dataframe(config_df, use_container_width=True, hide_index=True)
+
+        st.info(
+            "Balanced accuracy merata-ratakan recall antarkelas, sedangkan accuracy "
+            "mengukur proporsi seluruh prediksi yang benar. Keduanya dapat berbeda "
+            "ketika distribusi kelas tidak seimbang."
+        )
+        st.warning(
+            "Data uji hanya berisi 30 responden dan kelas Rendah memiliki jumlah sampel "
+            "yang sangat kecil. Karena itu, interpretasikan metrik per kelas secara hati-hati; "
+            "hasil ini belum menjamin performa yang sama pada populasi mahasiswa secara umum."
+        )
+
+    except FileNotFoundError:
+        st.error(
+            f"File `{test_path}` tidak ditemukan. Tambahkan artefak hasil ekspor notebook "
+            "Google Colab ke direktori yang sama dengan app.py."
+        )
+    except Exception as e:
+        st.error("Evaluasi model tidak dapat dihitung dari artefak notebook.")
+        st.exception(e)
