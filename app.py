@@ -19,6 +19,24 @@ STRESS_CLASSES = ["Rendah", "Sedang", "Tinggi"]
 STRESS_COLORS = {"Rendah": "#22C55E", "Sedang": "#F59E0B", "Tinggi": "#EF4444"}
 STRESS_ICONS = {"Rendah": "🟢", "Sedang": "🟡", "Tinggi": "🔴"}
 
+# Nilai cadangan (hasil run notebook final) dipakai hanya jika metrik_model.json
+# tidak tersedia. Jika file itu ada, semua angka tab Performa dan sidebar diambil
+# dari file tersebut agar selalu sama dengan run notebook yang menghasilkannya.
+FALLBACK_PARAMS = {"svc__C": 100, "svc__gamma": 0.1, "svc__class_weight": "balanced"}
+FALLBACK_CM = [[1, 0, 0], [6, 10, 5], [0, 4, 4]]
+
+
+def load_experiment_metrics():
+    try:
+        with open("metrik_model.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+EXPERIMENT = load_experiment_metrics()
+BEST_PARAMS = EXPERIMENT.get("best_params") or FALLBACK_PARAMS
+
 # -----------------------------
 # Data & model
 # -----------------------------
@@ -138,9 +156,9 @@ with st.sidebar:
     st.subheader("⚙️ Konfigurasi Model")
     st.write("**Algoritma:** SVM")
     st.write("**Kernel:** RBF")
-    st.write("**C:** 100")
-    st.write("**Gamma:** 0.1")
-    st.write("**Class weight:** balanced")
+    st.write(f"**C:** {BEST_PARAMS.get('svc__C')}")
+    st.write(f"**Gamma:** {BEST_PARAMS.get('svc__gamma')}")
+    st.write(f"**Class weight:** {BEST_PARAMS.get('svc__class_weight')}")
     st.write("**Fitur:** PASS + PSQI")
 
     st.divider()
@@ -321,7 +339,7 @@ with tab1:
     if st.button(
         "🔍 Prediksi Tingkat Stres",
         type="primary",
-        use_container_width=True,
+        width="stretch",
         disabled=(
             input_invalid or pass_value is None or psqi_value is None
         ),
@@ -433,12 +451,12 @@ with tab1:
                 ax.set_xlabel("Kontribusi SHAP terhadap output keputusan")
                 ax.set_title(f"Penjelasan untuk kelas {prediction}")
                 plt.tight_layout()
-                st.pyplot(fig, use_container_width=True)
+                st.pyplot(fig, width="stretch")
                 plt.close(fig)
 
                 st.dataframe(
                     shap_df,
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True
                 )
                 st.caption(
@@ -533,7 +551,7 @@ with tab2:
         margin=dict(l=25, r=25, t=25, b=25),
         plot_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "Angka pada grafik dihitung langsung dari kolom Tingkat_Stres. "
         "Persentase = jumlah kategori / total responden × 100%."
@@ -545,7 +563,7 @@ with tab2:
         "Persentase": [f"{actual_pct[x]:.2f}%" for x in STRESS_CLASSES],
     })
     st.subheader("Distribusi Aktual")
-    st.dataframe(actual_table, use_container_width=True, hide_index=True)
+    st.dataframe(actual_table, width="stretch", hide_index=True)
 
     pred_counts = (
         df["Prediksi_Batch"].astype(str).str.strip()
@@ -561,7 +579,7 @@ with tab2:
     })
     st.subheader("Distribusi Hasil Prediksi Model")
     st.write("Distribusi prediksi model dapat berbeda dari distribusi kategori aktual.")
-    st.dataframe(pred_table, use_container_width=True, hide_index=True)
+    st.dataframe(pred_table, width="stretch", hide_index=True)
 
     st.subheader("Data Responden")
     display_columns = [
@@ -570,14 +588,14 @@ with tab2:
             "PASS", "PSQI", "PSS-10_Score", "Tingkat_Stres", "Prediksi_Batch"
         ] if c in df.columns
     ]
-    st.dataframe(df[display_columns], use_container_width=True, hide_index=True, height=420)
+    st.dataframe(df[display_columns], width="stretch", hide_index=True, height=420)
 
     st.download_button(
         "⬇️ Unduh hasil prediksi 150 responden (CSV)",
         data=df.to_csv(index=False).encode("utf-8"),
         file_name="dataset_responden_app.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
 
     if actual_total != 150:
@@ -604,7 +622,7 @@ with tab3:
 
         # Native table first
         st.subheader("Jumlah Responden")
-        st.dataframe(faculty, use_container_width=True)
+        st.dataframe(faculty, width="stretch")
 
         # Stacked colored chart
         fig, ax = plt.subplots(figsize=(11, max(4.8, len(faculty) * 0.42)))
@@ -619,12 +637,12 @@ with tab3:
         ax.grid(axis="x", alpha=0.18)
         ax.set_axisbelow(True)
         plt.tight_layout()
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig, width="stretch")
         plt.close(fig)
 
         pct = (faculty.div(faculty.sum(axis=1), axis=0) * 100).round(2)
         st.subheader("Persentase dalam Masing-masing Fakultas")
-        st.dataframe(pct, use_container_width=True)
+        st.dataframe(pct, width="stretch")
         st.caption("Persentase dihitung di dalam masing-masing fakultas.")
 
 # -----------------------------
@@ -686,7 +704,7 @@ with tab4:
         ])
 
     st.subheader("Global Feature Importance")
-    st.caption("Mean absolute SHAP dari 30 data uji penelitian.")
+    st.caption(f"Mean absolute SHAP dari {len(shap_test)} data uji penelitian." if not shap_global.empty else "Mean absolute SHAP dari data uji penelitian.")
 
     if not shap_global.empty:
         # Kartu ringkasan per kelas
@@ -706,7 +724,7 @@ with tab4:
         st.subheader("Tabel Nilai SHAP")
         st.dataframe(
             shap_global.style.format({c: "{:.6f}" for c in ["Mean |SHAP|", "Mean SHAP", "SHAP Min", "SHAP Max"]}),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -725,7 +743,7 @@ with tab4:
         ax.grid(axis="y", alpha=0.18)
         ax.set_axisbelow(True)
         plt.tight_layout()
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig, width="stretch")
         plt.close(fig)
 
         st.subheader("Interpretasi")
@@ -751,10 +769,6 @@ with tab4:
         "prediksi aktual yang dihitung dari model saat aplikasi dijalankan."
     )
 
-st.divider()
-st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT  •  Support Vector Machine (SVM) + Explainable AI (SHAP)")
-
-
 # -----------------------------
 # Tab 5
 # -----------------------------
@@ -762,53 +776,24 @@ with tab5:
     st.header("Performa Model SVM")
     st.write(
         "Metrik berikut adalah hasil evaluasi model SVM final pada data uji "
-        "(30 responden) dari pembagian 80:20 secara stratified. Angka ditampilkan "
+        "dari pembagian 80:20 secara stratified. Angka ditampilkan "
         "sebagai hasil evaluasi eksperimen, bukan dihitung dari prediksi batch seluruh responden."
     )
 
-    # Baca skor validasi silang dari metrik_model.json
-    import json
-    from pathlib import Path
-
-    metrics_path = Path("metrik_model.json")
-
-    if metrics_path.exists():
-        try:
-            with metrics_path.open("r", encoding="utf-8") as f:
-                experiment_metrics = json.load(f)
-
-            cv_macro_f1 = experiment_metrics.get("best_cv_macro_f1")
-
-            if cv_macro_f1 is not None:
-                st.metric(
-                    "CV Macro F1 (Validasi Silang Terbaik)",
-                    f"{float(cv_macro_f1) * 100:.2f}%"
-                )
-                st.caption(
-                    "Skor validasi silang terbaik dari pencarian parameter "
-                    "model; berbeda dari Macro F1 pada data uji."
-                )
-            else:
-                st.warning(
-                    "Nilai best_cv_macro_f1 tidak ditemukan "
-                    "dalam metrik_model.json."
-                )
-
-        except (json.JSONDecodeError, ValueError, TypeError) as e:
-            st.error(f"Gagal membaca skor validasi silang: {e}")
-    else:
-        st.warning(
-            "File metrik_model.json tidak ditemukan di root repository."
-        )
-    
     st.subheader("Confusion Matrix")
-    # Confusion matrix hasil evaluasi model final pada 30 data uji.
-    # Urutan baris/kolom: Rendah, Sedang, Tinggi.
-    cm = np.array([
-        [1, 0, 0],
-        [6, 10, 5],
-        [0, 4, 4],
-    ], dtype=int)
+    # Confusion matrix hasil evaluasi model final pada data uji.
+    # Sumber utama: metrik_model.json dari notebook. Urutan baris/kolom:
+    # Rendah, Sedang, Tinggi.
+    cm_source = "metrik_model.json"
+    cm_raw = EXPERIMENT.get("confusion_matrix")
+    if cm_raw is None or EXPERIMENT.get("confusion_matrix_labels", STRESS_CLASSES) != STRESS_CLASSES:
+        cm_raw = FALLBACK_CM
+        cm_source = "nilai cadangan di app.py (metrik_model.json tidak ditemukan)"
+    cm = np.array(cm_raw, dtype=int)
+    if cm.shape != (3, 3):
+        st.error(f"Bentuk confusion matrix tidak valid: {cm.shape}")
+        st.stop()
+    n_test = int(cm.sum())
 
     # Hitung metrik langsung dari confusion matrix agar angka yang ditampilkan
     # selalu konsisten dengan tabel evaluasi.
@@ -848,7 +833,7 @@ with tab5:
         index=[f"Aktual {x}" for x in STRESS_CLASSES],
         columns=[f"Prediksi {x}" for x in STRESS_CLASSES],
     )
-    st.dataframe(cm_df, use_container_width=True)
+    st.dataframe(cm_df, width="stretch")
 
     # Audit internal: pastikan metrik yang ditampilkan konsisten
     # dengan confusion matrix yang ditampilkan.
@@ -876,11 +861,12 @@ with tab5:
     cm_macro_precision = precisions.mean()
     cm_macro_f1 = f1_each.mean()
 
+    saved_metrics = EXPERIMENT.get("metrics") or {}
     expected_metrics = {
-        "Accuracy": 0.5000,
-        "Balanced Accuracy": 0.6587,
-        "Macro Precision": 0.4339,
-        "Macro F1": 0.4307,
+        "Accuracy": saved_metrics.get("Accuracy", 0.5000),
+        "Balanced Accuracy": saved_metrics.get("Balanced Accuracy", 0.6587),
+        "Macro Precision": saved_metrics.get("Macro Precision", 0.4339),
+        "Macro F1": saved_metrics.get("Macro F1", 0.4307),
     }
     calculated_metrics = {
         "Accuracy": cm_accuracy,
@@ -904,6 +890,7 @@ with tab5:
         )
 
     st.caption(
+        f"Data uji: {n_test} responden. Sumber angka: {cm_source}. "
         "Baris menunjukkan kelas aktual dan kolom menunjukkan kelas prediksi. "
         "Diagonal menunjukkan jumlah klasifikasi yang sesuai."
     )
@@ -912,23 +899,22 @@ with tab5:
     config_items = [
         ("Algoritma", "Support Vector Machine"),
         ("Kernel", "RBF"),
-        ("C", "100"),
-        ("Gamma", "0.1"),
-        ("Class Weight", "balanced"),
+        ("C", str(BEST_PARAMS.get("svc__C"))),
+        ("Gamma", str(BEST_PARAMS.get("svc__gamma"))),
+        ("Class Weight", str(BEST_PARAMS.get("svc__class_weight"))),
         ("Standardisasi", "StandardScaler"),
         ("Fitur", "PASS + PSQI"),
     ]
     # Ambil skor CV dari artefak eksperimen jika file tersedia.
     try:
-        with open("metrik_model.json", "r", encoding="utf-8") as metrics_file:
-            experiment_metrics = json.load(metrics_file)
-        cv_score = experiment_metrics.get("macro_f1_cross_validation")
+        # Kunci dari notebook: best_cv_macro_f1 (kunci lama dipertahankan sebagai cadangan).
+        cv_score = EXPERIMENT.get("best_cv_macro_f1", EXPERIMENT.get("macro_f1_cross_validation"))
         if cv_score is not None:
             config_items.append(("CV Macro F1 (GridSearchCV)", f"{float(cv_score):.6f}"))
-    except (FileNotFoundError, json.JSONDecodeError, TypeError, ValueError):
+    except (TypeError, ValueError):
         pass
     config_df = pd.DataFrame(config_items, columns=["Komponen", "Nilai"])
-    st.dataframe(config_df, use_container_width=True, hide_index=True)
+    st.dataframe(config_df, width="stretch", hide_index=True)
 
     st.info(
         "Accuracy dan balanced accuracy menggambarkan aspek yang berbeda. "
@@ -937,7 +923,10 @@ with tab5:
     )
     st.warning(
         "Interpretasikan metrik per kelas dengan hati-hati: data uji hanya "
-        "berisi 30 responden dan kelas Rendah memiliki dukungan yang sangat kecil. "
+        f"berisi {n_test} responden dan kelas Rendah memiliki dukungan yang sangat kecil. "
         "Hasil evaluasi ini belum cukup untuk menyimpulkan performa yang stabil "
         "pada populasi mahasiswa secara umum."
     )
+
+st.divider()
+st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT  •  Support Vector Machine (SVM) + Explainable AI (SHAP)")
