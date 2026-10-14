@@ -191,7 +191,7 @@ except Exception as e:
 # Sidebar
 # -----------------------------
 with st.sidebar:
-    st.title("🧠 Support Vector Machine + Explainable AI")
+    st.title("🧠 _Support Vector Machine + Explainable AI_ ")
     st.caption("Aplikasi Penelitian")
     st.divider()
 
