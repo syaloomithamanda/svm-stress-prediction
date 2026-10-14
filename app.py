@@ -200,7 +200,7 @@ with st.sidebar:
     st.write("**Kernel:** RBF")
     st.write("**C:** 100")
     st.write("**Gamma:** 0.1")
-    st.write("**_Class weight:** balanced_")
+    st.write("**_Class weight:_** _balanced_")
     st.write("**Fitur:** PASS + PSQI")
 
     st.divider()
@@ -219,7 +219,7 @@ st.markdown("""
 <div class="hero-panel">
   <div class="hero-eyebrow">Dashboard Penelitian · Universitas Sam Ratulangi</div>
   <div class="hero-title">Prediksi Tingkat Stres<br>Mahasiswa Semester Akhir</div>
-  <p class="hero-subtitle">Sistem klasifikasi berbasis <b>Support Vector Machine (SVM)</b> dengan pendekatan <b>_Explainable AI_ (SHAP)</b> untuk menampilkan hasil prediksi dan penjelasan kontribusi fitur.</p>
+  <p class="hero-subtitle">Sistem klasifikasi berbasis _<b>Support Vector Machine_ (SVM)</b> dengan pendekatan _<b>Explainable AI_ (SHAP)</b> untuk menampilkan hasil prediksi dan penjelasan kontribusi fitur.</p>
   <div class="hero-tags"><span class="hero-tag">SVM · RBF</span><span class="hero-tag">Fitur: PASS + PSQI</span><span class="hero-tag">_Explainable AI_</span><span class="hero-tag">UNSRAT</span></div>
 </div>
 """, unsafe_allow_html=True)
