@@ -259,8 +259,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # -----------------------------
 with tab1:
     st.header("Prediksi Tingkat Stres Individu")
-    st.write("Masukkan skor **_The Perceptions of Academic Stress Scale_
-    (PASS)** dan **_Pittsburgh Sleep Quality Index_ (PSQI)** untuk melihat kategori yang diprediksi oleh model SVM terbaru.")
+    st.write("Masukkan skor **_The Perceptions of Academic Stress Scale_ (PASS)** dan **_Pittsburgh Sleep Quality Index_ (PSQI)** untuk melihat kategori yang diprediksi oleh model SVM terbaru.")
 
     c1, c2 = st.columns(2)
     with c1:
