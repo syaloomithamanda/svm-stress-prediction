@@ -17,7 +17,7 @@ from sklearn.metrics import (
 )
 
 st.set_page_config(
-    page_title="Prediksi Tingkat Stres Mahasiswa Semester Akhir Universitas Sam Ratulangi",
+    page_title="Prediksi Tingkat Stres Mahasiswa Semester Akhir Universitas Sam Ratulangi",      
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -210,7 +210,7 @@ with st.sidebar:
     st.error("🔴 **Tinggi** — PSS-10 27–40")
 
     st.divider()
-    st.caption("PSS-10 digunakan untuk membentuk target. PASS dan PSQI digunakan sebagai fitur model. PSS-10_Score tidak digunakan sebagai fitur untuk mencegah target leakage. SHAP menjelaskan keputusan model dan bukan hubungan sebab-akibat.")
+    st.caption("Perceived Stress Scale-10 (PSS-10) digunakan untuk membentuk target. The Perceptions of Academic Stress Scale (PASS) dan Pittsburgh Sleep Quality Index (PSQI) digunakan sebagai fitur model. PSS-10_Score tidak digunakan sebagai fitur untuk mencegah target leakage. SHapley Additive exPlanations (SHAP) menjelaskan keputusan model dan bukan hubungan sebab-akibat.")
 
 # -----------------------------
 # Header — visual redesign only
@@ -259,7 +259,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # -----------------------------
 with tab1:
     st.header("Prediksi Tingkat Stres Individu")
-    st.write("Masukkan skor **PASS** dan **PSQI** untuk melihat kategori yang diprediksi oleh model SVM terbaru.")
+    st.write("Masukkan skor **The Perceptions of Academic Stress Scale (PASS)** dan **Pittsburgh Sleep Quality Index (PSQI)** untuk melihat kategori yang diprediksi oleh model SVM terbaru.")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -522,7 +522,7 @@ with tab1:
 # -----------------------------
 with tab2:
     st.header("Distribusi Tingkat Stres")
-    st.write("Kategori aktual dibentuk dari skor PSS-10 pada responden penelitian.")
+    st.write("Kategori aktual dibentuk dari skor Perceived Stress Scale-10 (PSS-10) pada responden penelitian.")
 
     # Hitung langsung dari label aktual; tidak memakai hasil prediksi model.
     actual_counts = (
@@ -817,7 +817,7 @@ with tab4:
     )
 
 st.divider()
-st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT  •  Support Vector Machine (SVM) + Explainable AI (SHAP)")
+st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir Universitas Sam Ratulangi  •  Support Vector Machine (SVM) + Explainable AI (SHAP)")
 
 
 # -----------------------------
