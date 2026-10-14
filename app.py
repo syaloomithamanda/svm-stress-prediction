@@ -219,7 +219,7 @@ st.markdown("""
 <div class="hero-panel">
   <div class="hero-eyebrow">Dashboard Penelitian · Universitas Sam Ratulangi</div>
   <div class="hero-title">Prediksi Tingkat Stres<br>Mahasiswa Semester Akhir</div>
-  <p class="hero-subtitle">Sistem klasifikasi berbasis _<b>Support Vector Machine_ (SVM)</b> dengan pendekatan _<b>Explainable AI_ (SHAP)</b> untuk menampilkan hasil prediksi dan penjelasan kontribusi fitur.</p>
+  <p class="hero-subtitle">Sistem klasifikasi berbasis <b>Support Vector Machine (SVM)</b> dengan pendekatan <b>Explainable AI (SHAP)</b> untuk menampilkan hasil prediksi dan penjelasan kontribusi fitur.</p>
   <div class="hero-tags"><span class="hero-tag">SVM · RBF</span><span class="hero-tag">Fitur: PASS + PSQI</span><span class="hero-tag">_Explainable AI_</span><span class="hero-tag">UNSRAT</span></div>
 </div>
 """, unsafe_allow_html=True)
@@ -952,7 +952,7 @@ with tab5:
 
         st.subheader("Konfigurasi Model dari Notebook")
         config_items = [
-            ("Algoritma", "Support Vector Machine"),
+            ("Algoritma", "_Support Vector Machine_"),
             ("Kernel", "RBF"),
             ("Standardisasi", "StandardScaler"),
             ("Fitur", " + ".join(feature_names)),
