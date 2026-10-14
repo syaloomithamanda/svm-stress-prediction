@@ -23,177 +23,59 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-
 # -----------------------------
-# Presentation layer — UI only
+# UI THEME — Dark + Navy (visual only)
 # -----------------------------
-st.markdown(
-    """
-    <style>
-    :root {
-        --ink: #14243A;
-        --muted: #617187;
-        --navy: #17365D;
-        --teal: #0F9D9A;
-        --line: #E3EAF2;
-        --surface: #FFFFFF;
-        --soft: #F4F8FB;
-    }
+st.markdown("""
+<style>
+:root {
+  --navy-950: #07111f; --navy-900: #0a1628; --navy-800: #10233d;
+  --navy-700: #173554; --cyan-400: #38bdf8; --teal-400: #2dd4bf;
+  --text-main: #e8eef8; --text-muted: #9fb0c7; --panel: #101e31;
+}
+.stApp { background: radial-gradient(ellipse at 10% 0%, #142b49 0%, #0a1628 38%, #070f1b 100%); color: var(--text-main); }
+[data-testid="stHeader"] { background: rgba(7,17,31,.78); }
+[data-testid="stToolbar"] { right: 1rem; }
+section[data-testid="stSidebar"] { background: linear-gradient(180deg, #0d1c30 0%, #081321 100%); border-right: 1px solid rgba(125,168,215,.16); }
+section[data-testid="stSidebar"] * { color: #dce8f8; }
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color: #aabbd1; }
+h1, h2, h3 { color: #f1f6ff !important; letter-spacing: -0.025em; }
+p, label, .stCaption, [data-testid="stMarkdownContainer"] { color: #d4deec; }
+[data-testid="stMetric"] { background: linear-gradient(145deg, rgba(21,43,70,.96), rgba(13,29,49,.96)); border: 1px solid rgba(91,153,207,.22); border-radius: 16px; padding: 17px 18px; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+[data-testid="stMetricLabel"] { color: #9fb7d3 !important; font-size: .88rem; }
+[data-testid="stMetricValue"] { color: #f2f7ff !important; font-weight: 750; }
+[data-testid="stMetricDelta"] { font-weight: 600; }
+[data-testid="stTabs"] [role="tablist"] { gap: 8px; border-bottom: 1px solid rgba(125,168,215,.18); }
+[data-testid="stTabs"] button[role="tab"] { background: rgba(15,31,51,.68); border: 1px solid rgba(125,168,215,.14); border-radius: 11px 11px 0 0; padding: 11px 15px; color: #aebfd5; transition: all .18s ease; }
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] { background: linear-gradient(135deg, #173b60, #124a61); color: #f4fbff; border-color: rgba(56,189,248,.5); box-shadow: inset 0 -2px 0 #38bdf8; }
+[data-testid="stVerticalBlockBorderWrapper"] { border-color: rgba(125,168,215,.20) !important; }
+[data-testid="stAlert"] { border-radius: 12px; }
+.stButton > button, .stDownloadButton > button { border-radius: 11px; border: 1px solid rgba(56,189,248,.35); font-weight: 650; transition: transform .15s ease, box-shadow .15s ease; }
+.stButton > button[kind="primary"] { background: linear-gradient(100deg, #087eaa, #155e91); color: white; box-shadow: 0 6px 18px rgba(8,126,170,.18); }
+.stButton > button:hover, .stDownloadButton > button:hover { border-color: #38bdf8; transform: translateY(-1px); box-shadow: 0 7px 20px rgba(56,189,248,.12); }
+[data-baseweb="input"] > div, [data-baseweb="select"] > div, [data-baseweb="textarea"] { background: #0b192b; border-color: #29415e; border-radius: 10px; }
+[data-testid="stDataFrame"], [data-testid="stTable"] { border: 1px solid rgba(125,168,215,.18); border-radius: 12px; overflow: hidden; }
+hr { border-color: rgba(125,168,215,.18); }
+.hero-panel { padding: 28px 30px; margin: 4px 0 22px; border-radius: 22px; border: 1px solid rgba(80,169,220,.30); background: linear-gradient(115deg, rgba(17,48,79,.97), rgba(11,28,48,.95) 58%, rgba(10,47,63,.92)); box-shadow: 0 16px 42px rgba(0,0,0,.22); position: relative; overflow: hidden; }
+.hero-panel:after { content: ""; position: absolute; width: 230px; height: 230px; border-radius: 50%; right: -55px; top: -115px; background: rgba(45,212,191,.09); border: 1px solid rgba(56,189,248,.16); }
+.hero-eyebrow { color: #5eead4; text-transform: uppercase; letter-spacing: .16em; font-size: .72rem; font-weight: 800; margin-bottom: 10px; }
+.hero-title { color: #f4f8ff; font-size: clamp(1.65rem, 3vw, 2.45rem); font-weight: 800; letter-spacing: -.045em; line-height: 1.14; margin: 0 0 10px; }
+.hero-subtitle { color: #b6c9df; font-size: 1rem; line-height: 1.6; max-width: 850px; margin: 0; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.hero-tag { border: 1px solid rgba(125,211,252,.24); background: rgba(8,24,41,.48); color: #d5f3ff; padding: 6px 10px; border-radius: 999px; font-size: .78rem; font-weight: 650; }
+@media (max-width: 700px) { .hero-panel { padding: 22px 20px; } [data-testid="stTabs"] [role="tablist"] { gap: 4px; } [data-testid="stTabs"] button[role="tab"] { padding: 8px 10px; font-size: .78rem; } }
+</style>
+""", unsafe_allow_html=True)
 
-    .stApp {
-        background: linear-gradient(180deg, #F5F8FC 0%, #FFFFFF 340px);
-        color: var(--ink);
-    }
-    [data-testid="stHeader"] { background: rgba(245,248,252,0.88); }
-    .block-container {
-        max-width: 1480px;
-        padding-top: 1.7rem;
-        padding-bottom: 3rem;
-    }
-    h1, h2, h3, h4 { color: var(--ink); letter-spacing: -0.025em; }
-    h1 { font-weight: 800 !important; }
-    h2, h3 { font-weight: 730 !important; }
-    p, label, [data-testid="stMarkdownContainer"] { line-height: 1.62; }
-
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #112944 0%, #173B5C 100%);
-        border-right: 1px solid rgba(255,255,255,0.08);
-    }
-    [data-testid="stSidebar"] * { color: #F1F6FC; }
-    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color: #D6E2F0; }
-    [data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.18); }
-    [data-testid="stSidebar"] [data-testid="stAlert"] {
-        background: rgba(255,255,255,0.09);
-        border: 1px solid rgba(255,255,255,0.13);
-        border-radius: 12px;
-    }
-
-    .hero-panel {
-        position: relative;
-        overflow: hidden;
-        padding: 1.65rem 1.8rem;
-        margin: 0.2rem 0 1.35rem 0;
-        border-radius: 22px;
-        color: #FFFFFF;
-        background: linear-gradient(120deg, #142B49 0%, #1A496B 65%, #0E8588 100%);
-        box-shadow: 0 16px 34px rgba(23,54,93,0.16);
-    }
-    .hero-panel:after {
-        content: "";
-        position: absolute;
-        width: 240px; height: 240px;
-        right: -65px; top: -115px;
-        border: 1px solid rgba(255,255,255,0.16);
-        border-radius: 50%;
-        box-shadow: 0 0 0 28px rgba(255,255,255,0.035), 0 0 0 58px rgba(255,255,255,0.025);
-    }
-    .hero-eyebrow {
-        color: #A8F0E8;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-        font-weight: 800;
-        letter-spacing: 0.13em;
-        margin-bottom: 0.55rem;
-    }
-    .hero-title {
-        position: relative; z-index: 1;
-        font-size: clamp(1.65rem, 2.7vw, 2.45rem);
-        font-weight: 850;
-        line-height: 1.16;
-        letter-spacing: -0.04em;
-        margin: 0 0 0.55rem 0;
-        color: #FFFFFF;
-    }
-    .hero-subtitle {
-        position: relative; z-index: 1;
-        font-size: 1rem;
-        max-width: 850px;
-        color: #E0ECF7;
-        margin: 0;
-    }
-    .hero-tags { display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:1.1rem; position:relative; z-index:1; }
-    .hero-tag {
-        display:inline-block; padding:0.28rem 0.65rem; border-radius:999px;
-        border:1px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.09);
-        color:#F4FBFF; font-size:0.76rem; font-weight:650;
-    }
-
-    [data-testid="stMetric"] {
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 1rem 1.05rem;
-        box-shadow: 0 5px 16px rgba(20,36,58,0.045);
-        min-height: 112px;
-    }
-    [data-testid="stMetricLabel"] { color: var(--muted); font-size: 0.88rem; font-weight: 650; }
-    [data-testid="stMetricValue"] { color: var(--navy); font-weight: 800; }
-    [data-testid="stMetricDelta"] { font-size: 0.82rem; }
-
-    [data-testid="stTabs"] [role="tablist"] {
-        gap: 0.35rem;
-        border-bottom: 1px solid var(--line);
-        padding: 0.25rem 0.25rem 0;
-    }
-    [data-testid="stTabs"] button[role="tab"] {
-        border-radius: 11px 11px 0 0;
-        padding: 0.75rem 0.95rem;
-        font-weight: 680;
-        color: #5A6C82;
-    }
-    [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
-        color: var(--navy);
-        background: #EAF4F7;
-        border-bottom: 3px solid var(--teal);
-    }
-    [data-testid="stTabsContent"] { padding-top: 1.25rem; }
-
-    .stButton > button, .stDownloadButton > button {
-        border-radius: 11px;
-        font-weight: 700;
-        min-height: 2.7rem;
-        transition: transform 120ms ease, box-shadow 120ms ease;
-    }
-    .stButton > button[kind="primary"] {
-        border: 0;
-        background: linear-gradient(100deg, #17365D 0%, #087F8C 100%);
-        color: white;
-        box-shadow: 0 6px 14px rgba(15,92,120,0.16);
-    }
-    .stButton > button:hover, .stDownloadButton > button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 7px 17px rgba(20,36,58,0.10);
-    }
-    [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input,
-    [data-testid="stSelectbox"] div[data-baseweb="select"] {
-        border-radius: 10px;
-    }
-    [data-testid="stDataFrame"], [data-testid="stTable"] {
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        overflow: hidden;
-    }
-    [data-testid="stAlert"] { border-radius: 12px; }
-    [data-testid="stPlotlyChart"], [data-testid="stImage"] {
-        border-radius: 14px;
-    }
-    hr { border-color: var(--line); }
-    .app-footer {
-        padding: 0.9rem 0 0.2rem;
-        color: #718096;
-        font-size: 0.8rem;
-        text-align: center;
-    }
-    @media (max-width: 768px) {
-        .block-container { padding: 1rem 0.8rem 2rem; }
-        .hero-panel { padding: 1.25rem; border-radius: 16px; }
-        [data-testid="stTabs"] [role="tablist"] { gap: 0.1rem; }
-        [data-testid="stTabs"] button[role="tab"] { padding: 0.55rem 0.65rem; font-size: 0.82rem; }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+# Plot themes affect chart appearance only; values and model logic remain unchanged.
+px.defaults.template = "plotly_dark"
+plt.rcParams.update({
+    "figure.facecolor": "#0d1a2b", "axes.facecolor": "#0d1a2b",
+    "axes.edgecolor": "#49617c", "axes.labelcolor": "#d8e4f2",
+    "xtick.color": "#b6c6da", "ytick.color": "#b6c6da",
+    "text.color": "#e6eef8", "axes.titlecolor": "#f1f6ff",
+    "grid.color": "#2a3e56", "savefig.facecolor": "#0d1a2b",
+})
 
 EXPECTED_FEATURES = ["PASS", "PSQI"]
 STRESS_CLASSES = ["Rendah", "Sedang", "Tinggi"]
@@ -331,23 +213,16 @@ with st.sidebar:
     st.caption("PSS-10 digunakan untuk membentuk target. PASS dan PSQI digunakan sebagai fitur model. PSS-10_Score tidak digunakan sebagai fitur untuk mencegah target leakage. SHAP menjelaskan keputusan model dan bukan hubungan sebab-akibat.")
 
 # -----------------------------
-# Header — presentation only
+# Header — visual redesign only
 # -----------------------------
-st.markdown(
-    """
-    <section class="hero-panel">
-      <div class="hero-eyebrow">Dashboard penelitian · Universitas Sam Ratulangi</div>
-      <div class="hero-title">Prediksi Tingkat Stres Mahasiswa</div>
-      <p class="hero-subtitle">Mahasiswa semester akhir · Klasifikasi Support Vector Machine (SVM) dengan pendekatan Explainable AI (SHAP).</p>
-      <div class="hero-tags">
-        <span class="hero-tag">SVM · Kernel RBF</span>
-        <span class="hero-tag">Fitur: PASS + PSQI</span>
-        <span class="hero-tag">Interpretabilitas: SHAP</span>
-      </div>
-    </section>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown("""
+<div class="hero-panel">
+  <div class="hero-eyebrow">Dashboard Penelitian · Universitas Sam Ratulangi</div>
+  <div class="hero-title">Prediksi Tingkat Stres<br>Mahasiswa Semester Akhir</div>
+  <p class="hero-subtitle">Sistem klasifikasi berbasis <b>Support Vector Machine (SVM)</b> dengan pendekatan <b>Explainable AI (SHAP)</b> untuk menampilkan hasil prediksi dan penjelasan kontribusi fitur.</p>
+  <div class="hero-tags"><span class="hero-tag">SVM · RBF</span><span class="hero-tag">Fitur: PASS + PSQI</span><span class="hero-tag">Explainable AI</span><span class="hero-tag">UNSRAT</span></div>
+</div>
+""", unsafe_allow_html=True)
 
 # Compact overview cards using native metrics
 counts = df["Tingkat_Stres"].value_counts()
@@ -942,7 +817,7 @@ with tab4:
     )
 
 st.divider()
-st.markdown('<div class="app-footer">Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT · Support Vector Machine (SVM) + Explainable AI (SHAP)</div>', unsafe_allow_html=True)
+st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir UNSRAT  •  Support Vector Machine (SVM) + Explainable AI (SHAP)")
 
 
 # -----------------------------
