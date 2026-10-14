@@ -17,7 +17,7 @@ from sklearn.metrics import (
 )
 
 st.set_page_config(
-    page_title="Prediksi Tingkat Stres UNSRAT",
+    page_title="Prediksi Tingkat Stres Mahasiswa Semester Akhir Universitas Sam Ratulangi",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -191,8 +191,8 @@ except Exception as e:
 # Sidebar
 # -----------------------------
 with st.sidebar:
-    st.title("🧠 SVM Stress App")
-    st.caption("Aplikasi penelitian — UNSRAT")
+    st.title("🧠 Support Vector Machine + Explainable AI")
+    st.caption("Aplikasi Penelitian")
     st.divider()
 
     st.subheader("⚙️ Konfigurasi Model")
@@ -696,7 +696,7 @@ with tab3:
 # Tab 4
 # -----------------------------
 with tab4:
-    st.header("Explainable AI dengan SHAP")
+    st.header("Explainable AI (SHapley Additive exPlanations)")
     st.write("SHAP digunakan untuk menjelaskan kontribusi fitur **PASS** dan **PSQI** terhadap output keputusan model SVM.")
     st.info("Model SVM final menggunakan probability=False. Karena itu, SHAP menjelaskan output **decision_function**, bukan probabilitas prediksi.")
 
