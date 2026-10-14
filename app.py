@@ -200,7 +200,7 @@ with st.sidebar:
     st.write("**Kernel:** RBF")
     st.write("**C:** 100")
     st.write("**Gamma:** 0.1")
-    st.write("**Class weight:** balanced")
+    st.write("**_Class weight:** balanced_")
     st.write("**Fitur:** PASS + PSQI")
 
     st.divider()
@@ -210,7 +210,7 @@ with st.sidebar:
     st.error("🔴 **Tinggi** — PSS-10 27–40")
 
     st.divider()
-    st.caption("Perceived Stress Scale-10 (PSS-10) digunakan untuk membentuk target. The Perceptions of Academic Stress Scale (PASS) dan Pittsburgh Sleep Quality Index (PSQI) digunakan sebagai fitur model. PSS-10_Score tidak digunakan sebagai fitur untuk mencegah target leakage. SHapley Additive exPlanations (SHAP) menjelaskan keputusan model dan bukan hubungan sebab-akibat.")
+    st.caption("_Perceived Stress Scale-10_ (PSS-10) digunakan untuk membentuk target. _The Perceptions of Academic Stress Scale_ (PASS) dan _Pittsburgh Sleep Quality Index_ (PSQI) digunakan sebagai fitur model. PSS-10_Score tidak digunakan sebagai fitur untuk mencegah target leakage. _SHapley Additive exPlanations_ (SHAP) menjelaskan keputusan model dan bukan hubungan sebab-akibat.")
 
 # -----------------------------
 # Header — visual redesign only
@@ -219,8 +219,8 @@ st.markdown("""
 <div class="hero-panel">
   <div class="hero-eyebrow">Dashboard Penelitian · Universitas Sam Ratulangi</div>
   <div class="hero-title">Prediksi Tingkat Stres<br>Mahasiswa Semester Akhir</div>
-  <p class="hero-subtitle">Sistem klasifikasi berbasis <b>Support Vector Machine (SVM)</b> dengan pendekatan <b>Explainable AI (SHAP)</b> untuk menampilkan hasil prediksi dan penjelasan kontribusi fitur.</p>
-  <div class="hero-tags"><span class="hero-tag">SVM · RBF</span><span class="hero-tag">Fitur: PASS + PSQI</span><span class="hero-tag">Explainable AI</span><span class="hero-tag">UNSRAT</span></div>
+  <p class="hero-subtitle">Sistem klasifikasi berbasis <b>Support Vector Machine (SVM)</b> dengan pendekatan <b>_Explainable AI_ (SHAP)</b> untuk menampilkan hasil prediksi dan penjelasan kontribusi fitur.</p>
+  <div class="hero-tags"><span class="hero-tag">SVM · RBF</span><span class="hero-tag">Fitur: PASS + PSQI</span><span class="hero-tag">_Explainable AI_</span><span class="hero-tag">UNSRAT</span></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -250,7 +250,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔎 Prediksi Individu",
     "📊 Distribusi 150 Responden",
     "🏫 Analisis Fakultas",
-    "💡 Explainable AI (SHAP)",
+    "💡 _Explainable AI_ (SHAP)",
     "📈 Performa Model",
 ])
 
@@ -259,7 +259,8 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # -----------------------------
 with tab1:
     st.header("Prediksi Tingkat Stres Individu")
-    st.write("Masukkan skor **The Perceptions of Academic Stress Scale (PASS)** dan **Pittsburgh Sleep Quality Index (PSQI)** untuk melihat kategori yang diprediksi oleh model SVM terbaru.")
+    st.write("Masukkan skor **_The Perceptions of Academic Stress Scale_
+    (PASS)** dan **_Pittsburgh Sleep Quality Index_ (PSQI)** untuk melihat kategori yang diprediksi oleh model SVM terbaru.")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -522,7 +523,7 @@ with tab1:
 # -----------------------------
 with tab2:
     st.header("Distribusi Tingkat Stres")
-    st.write("Kategori aktual dibentuk dari skor Perceived Stress Scale-10 (PSS-10) pada responden penelitian.")
+    st.write("Kategori aktual dibentuk dari skor _Perceived Stress Scale-10_ (PSS-10) pada responden penelitian.")
 
     # Hitung langsung dari label aktual; tidak memakai hasil prediksi model.
     actual_counts = (
@@ -696,7 +697,7 @@ with tab3:
 # Tab 4
 # -----------------------------
 with tab4:
-    st.header("Explainable AI (SHapley Additive exPlanations)")
+    st.header("_Explainable AI_ (_SHapley Additive exPlanations_)")
     st.write("SHAP digunakan untuk menjelaskan kontribusi fitur **PASS** dan **PSQI** terhadap output keputusan model SVM.")
     st.info("Model SVM final menggunakan probability=False. Karena itu, SHAP menjelaskan output **decision_function**, bukan probabilitas prediksi.")
 
@@ -750,7 +751,7 @@ with tab4:
             "Kelas", "Fitur", "Mean |SHAP|", "Mean SHAP", "SHAP Min", "SHAP Max"
         ])
 
-    st.subheader("Global Feature Importance")
+    st.subheader("_Global Feature Importance_")
     st.caption("Mean absolute SHAP dari 30 data uji penelitian.")
 
     if not shap_global.empty:
@@ -817,7 +818,7 @@ with tab4:
     )
 
 st.divider()
-st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir Universitas Sam Ratulangi  •  Support Vector Machine (SVM) + Explainable AI (SHAP)")
+st.caption("Prediksi Tingkat Stres Mahasiswa Semester Akhir Universitas Sam Ratulangi  •  _Support Vector Machine_ (SVM) + _Explainable AI_ (SHAP)")
 
 
 # -----------------------------
@@ -880,7 +881,7 @@ with tab5:
             with metric_cols[i % 3]:
                 st.metric(metric_name, f"{calculated_metrics[metric_name] * 100:.2f}%")
 
-        st.subheader("Confusion Matrix")
+        st.subheader("_Confusion Matrix_")
         cm_df = pd.DataFrame(
             cm,
             index=[f"Aktual {name}" for name in STRESS_CLASSES],
