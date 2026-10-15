@@ -220,7 +220,7 @@ st.markdown("""
   <div class="hero-eyebrow">Dashboard Penelitian · Universitas Sam Ratulangi</div>
   <div class="hero-title">Prediksi Tingkat Stres<br>Mahasiswa Semester Akhir</div>
   <p class="hero-subtitle">Sistem klasifikasi berbasis <b>Support Vector Machine (SVM)</b> dengan pendekatan <b>Explainable AI (SHAP)</b> untuk menampilkan hasil prediksi dan penjelasan kontribusi fitur.</p>
-  <div class="hero-tags"><span class="hero-tag">SVM · RBF</span><span class="hero-tag">Fitur: PASS + PSQI</span><span class="hero-tag">_Explainable AI_</span><span class="hero-tag">UNSRAT</span></div>
+  <div class="hero-tags"><span class="hero-tag">SVM · RBF</span><span class="hero-tag">Fitur: PASS + PSQI</span><span class="hero-tag">Explainable AI</span><span class="hero-tag">UNSRAT</span></div>
 </div>
 """, unsafe_allow_html=True)
 
