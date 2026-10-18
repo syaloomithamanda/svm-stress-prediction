@@ -952,7 +952,7 @@ with tab5:
 
         st.subheader("Konfigurasi Model dari Notebook")
         config_items = [
-            ("Algoritma", "_Support Vector Machine_"),
+            ("Algoritma", "Support Vector Machine"),
             ("Kernel", "RBF"),
             ("Standardisasi", "StandardScaler"),
             ("Fitur", " + ".join(feature_names)),
