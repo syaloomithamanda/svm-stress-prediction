@@ -1,4 +1,4 @@
-ID,Jenis Kelamin,Usia,Fakultas,Angkatan,PASS,PSQI,PSS-10,Tingkat Stres,Unnamed: 9,Unnamed: 10,Statistik PASS,Nilai,Unnamed: 13,Kategori,Frekuensi,Prediksi_Batch
+ID,Jenis_Kelamin,Usia,Fakultas,Angkatan,PASS,PSQI,PSS-10_Score,Tingkat_Stres,Unnamed: 9,Unnamed: 10,Statistik PASS,Nilai,Unnamed: 13,Kategori,Frekuensi,Prediksi_Batch
 R001,Perempuan,20 tahun,Kedokteran,2023,60,5,12,Rendah,,,Mean,51.82,,Rendah,7.0,Rendah
 R002,Perempuan,20 tahun,Kedokteran,2023,63,5,20,Sedang,,,Std. Deviation,6.312946110224934,,Sedang,104.0,Rendah
 R003,Perempuan,21 tahun,Kedokteran,2023,67,5,12,Rendah,,,Minimum,40,,Tinggi,39.0,Rendah
