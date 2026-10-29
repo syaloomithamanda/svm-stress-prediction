@@ -927,7 +927,12 @@ with tab5:
                 experiment = json.load(metrics_file)
             saved_metrics = experiment.get("metrics", {})
             comparison_keys = [
-                "Accuracy", "Balanced Accuracy", "Macro Precision", "Macro Recall", "Macro F1"
+                "Accuracy",
+                "Balanced Accuracy",
+                "Macro Precision",
+                "Macro Recall",
+                "Macro F1",
+                "Weighted F1",
             ]
             discrepancies = []
             for key in comparison_keys:
