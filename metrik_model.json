@@ -10,7 +10,8 @@
     "Balanced Accuracy": 0.6587301587301587,
     "Macro Precision": 0.4338624338624339,
     "Macro Recall": 0.6587301587301587,
-    "Macro F1": 0.430672268907563
+    "Macro F1": 0.430672268907563,
+    "Weighted F1": 0.5338235294117647
   },
   "classes": [
     "Rendah",
